@@ -150,6 +150,22 @@ export const useFiados = () => {
       .sort((a, b) => b.date.getTime() - a.date.getTime());
   };
 
+  const deleteCustomer = (customerId: string) => {
+    setData((prev) => ({
+      customers: prev.customers.filter((c) => c.id !== customerId),
+      transactions: prev.transactions.filter((t) => t.customerId !== customerId),
+    }));
+  };
+
+  const updateCustomer = (customerId: string, name: string, phone: string) => {
+    setData((prev) => ({
+      ...prev,
+      customers: prev.customers.map((c) =>
+        c.id === customerId ? { ...c, name, phone } : c
+      ),
+    }));
+  };
+
   return {
     customers: data.customers,
     transactions: data.transactions,
@@ -159,5 +175,7 @@ export const useFiados = () => {
     getTotalDebt,
     getOverdueCustomers,
     getCustomerTransactions,
+    deleteCustomer,
+    updateCustomer,
   };
 };

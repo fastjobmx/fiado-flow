@@ -1,8 +1,10 @@
-import { ArrowLeft, Phone, MessageCircle, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Phone, MessageCircle, Plus, Minus, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Customer, Transaction } from '@/types/fiado';
 import { Button } from '@/components/ui/button';
 import { TransactionForm } from './TransactionForm';
+import { EditCustomerForm } from './EditCustomerForm';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 
 interface CustomerDetailProps {
   customer: Customer;
@@ -10,6 +12,8 @@ interface CustomerDetailProps {
   onBack: () => void;
   onAddDebt: (amount: number, description: string) => void;
   onAddPayment: (amount: number, description: string) => void;
+  onEdit: (name: string, phone: string) => void;
+  onDelete: () => void;
 }
 
 const formatCurrency = (amount: number) => {
@@ -36,9 +40,13 @@ export const CustomerDetail = ({
   onBack,
   onAddDebt,
   onAddPayment,
+  onEdit,
+  onDelete,
 }: CustomerDetailProps) => {
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const sendWhatsAppReminder = () => {
     const message = encodeURIComponent(
@@ -63,7 +71,25 @@ export const CustomerDetail = ({
       </button>
 
       <div className="bg-card rounded-xl p-6 border border-border mb-4">
-        <h1 className="text-xl font-bold text-foreground mb-1">{customer.name}</h1>
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="text-xl font-bold text-foreground">{customer.name}</h1>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowEditForm(true)}
+              className="p-2 text-muted-foreground hover:text-primary transition-colors"
+              title="Editar"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+              title="Eliminar"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
         <div className="flex items-center gap-2 text-muted-foreground mb-4">
           <Phone className="w-4 h-4" />
           <span>{customer.phone}</span>
@@ -124,6 +150,27 @@ export const CustomerDetail = ({
             setShowPaymentForm(false);
           }}
           onCancel={() => setShowPaymentForm(false)}
+        />
+      )}
+
+      {showEditForm && (
+        <EditCustomerForm
+          customer={customer}
+          onSubmit={(name, phone) => {
+            onEdit(name, phone);
+            setShowEditForm(false);
+          }}
+          onCancel={() => setShowEditForm(false)}
+        />
+      )}
+
+      {showDeleteConfirm && (
+        <DeleteConfirmDialog
+          customer={customer}
+          onConfirm={() => {
+            onDelete();
+          }}
+          onCancel={() => setShowDeleteConfirm(false)}
         />
       )}
 
