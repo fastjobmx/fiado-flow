@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Plus, Store, BarChart3, LogOut, Loader2 } from 'lucide-react';
+import { Plus, Store, BarChart3, LogOut, Loader2, Settings } from 'lucide-react';
 import { useFiados } from '@/hooks/useFiados';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProfile } from '@/hooks/useProfile';
 import { Customer } from '@/types/fiado';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { OverdueAlerts } from '@/components/OverdueAlerts';
@@ -9,10 +10,12 @@ import { CustomerList } from '@/components/CustomerList';
 import { CustomerDetail } from '@/components/CustomerDetail';
 import { AddCustomerForm } from '@/components/AddCustomerForm';
 import { PaymentsSummary } from '@/components/PaymentsSummary';
+import { ProfileSettings } from '@/components/ProfileSettings';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const { signOut } = useAuth();
+  const { profile, updateStoreName } = useProfile();
   const {
     customers,
     transactions,
@@ -30,6 +33,7 @@ const Index = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showPaymentsSummary, setShowPaymentsSummary] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   if (loading) {
     return (
@@ -71,16 +75,27 @@ const Index = () => {
     <div className="min-h-screen bg-background p-4 pb-24 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+        <button 
+          onClick={() => setShowSettings(true)}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
             <Store className="w-5 h-5 text-primary-foreground" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Mi Tienda</h1>
+          <div className="text-left">
+            <h1 className="text-xl font-bold text-foreground">{profile?.store_name || 'Mi Tienda'}</h1>
             <p className="text-sm text-muted-foreground">Control de Fiados</p>
           </div>
-        </div>
+        </button>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowSettings(true)}
+            title="Configuración"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
           <Button
             variant="outline"
             size="icon"
@@ -149,6 +164,15 @@ const Index = () => {
         <PaymentsSummary
           transactions={transactions}
           onClose={() => setShowPaymentsSummary(false)}
+        />
+      )}
+
+      {/* Profile Settings Modal */}
+      {showSettings && (
+        <ProfileSettings
+          currentStoreName={profile?.store_name || 'Mi Tienda'}
+          onSave={updateStoreName}
+          onClose={() => setShowSettings(false)}
         />
       )}
     </div>
