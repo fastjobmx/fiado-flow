@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Plus, Store, BarChart3 } from 'lucide-react';
+import { Plus, Store, BarChart3, LogOut, Loader2 } from 'lucide-react';
 import { useFiados } from '@/hooks/useFiados';
+import { useAuth } from '@/contexts/AuthContext';
 import { Customer } from '@/types/fiado';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { OverdueAlerts } from '@/components/OverdueAlerts';
@@ -11,9 +12,11 @@ import { PaymentsSummary } from '@/components/PaymentsSummary';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
+  const { signOut } = useAuth();
   const {
     customers,
     transactions,
+    loading,
     addCustomer,
     addDebt,
     addPayment,
@@ -27,6 +30,14 @@ const Index = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showPaymentsSummary, setShowPaymentsSummary] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const customersWithDebt = customers.filter((c) => c.totalDebt > 0);
   const overdueCustomers = getOverdueCustomers(15);
@@ -69,14 +80,24 @@ const Index = () => {
             <p className="text-sm text-muted-foreground">Control de Fiados</p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setShowPaymentsSummary(true)}
-          title="Resumen de pagos"
-        >
-          <BarChart3 className="w-5 h-5" />
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowPaymentsSummary(true)}
+            title="Resumen de pagos"
+          >
+            <BarChart3 className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={signOut}
+            title="Cerrar sesión"
+          >
+            <LogOut className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Dashboard Card */}
@@ -115,8 +136,8 @@ const Index = () => {
       {/* Add Customer Modal */}
       {showAddCustomer && (
         <AddCustomerForm
-          onSubmit={(name, phone) => {
-            addCustomer(name, phone);
+          onSubmit={async (name, phone) => {
+            await addCustomer(name, phone);
             setShowAddCustomer(false);
           }}
           onCancel={() => setShowAddCustomer(false)}
