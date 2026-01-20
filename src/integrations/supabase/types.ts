@@ -49,6 +49,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_theme: string | null
           background_color: string | null
           created_at: string
           id: string
@@ -61,6 +62,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active_theme?: string | null
           background_color?: string | null
           created_at?: string
           id?: string
@@ -73,6 +75,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active_theme?: string | null
           background_color?: string | null
           created_at?: string
           id?: string
