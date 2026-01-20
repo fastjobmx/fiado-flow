@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const { signOut } = useAuth();
-  const { profile, updateStoreName, uploadLogo, updateBrandingColors, getColors } = useProfile();
+  const { profile, updateStoreName, uploadLogo, updateTheme, updateBrandingColors, getColors, getActiveTheme } = useProfile();
   const {
     customers,
     transactions,
@@ -177,8 +177,10 @@ const Index = () => {
           currentStoreName={profile?.store_name || 'Mi Tienda'}
           currentLogoUrl={profile?.logo_url || null}
           currentColors={getColors()}
+          activeTheme={getActiveTheme()}
           onSaveName={updateStoreName}
           onUploadLogo={uploadLogo}
+          onSaveTheme={updateTheme}
           onSaveColors={updateBrandingColors}
           onClose={() => setShowSettings(false)}
         />

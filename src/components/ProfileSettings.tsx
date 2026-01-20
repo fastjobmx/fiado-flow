@@ -1,17 +1,19 @@
 import { useState, useRef } from 'react';
-import { X, Store, Upload, Palette, Image } from 'lucide-react';
+import { X, Store, Upload, Palette, Image, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { type BrandingColors } from '@/hooks/useProfile';
+import { type BrandingColors, PREDEFINED_THEMES } from '@/hooks/useProfile';
 
 interface ProfileSettingsProps {
   currentStoreName: string;
   currentLogoUrl: string | null;
   currentColors: BrandingColors;
+  activeTheme: string;
   onSaveName: (storeName: string) => void;
   onUploadLogo: (file: File) => Promise<string | null>;
+  onSaveTheme: (themeId: string, colors: BrandingColors) => void;
   onSaveColors: (colors: BrandingColors) => void;
   onClose: () => void;
 }
@@ -20,13 +22,16 @@ export const ProfileSettings = ({
   currentStoreName,
   currentLogoUrl,
   currentColors,
+  activeTheme,
   onSaveName,
   onUploadLogo,
+  onSaveTheme,
   onSaveColors,
   onClose,
 }: ProfileSettingsProps) => {
   const [storeName, setStoreName] = useState(currentStoreName);
-  const [colors, setColors] = useState<BrandingColors>(currentColors);
+  const [selectedTheme, setSelectedTheme] = useState(activeTheme);
+  const [customColors, setCustomColors] = useState<BrandingColors>(currentColors);
   const [logoPreview, setLogoPreview] = useState<string | null>(currentLogoUrl);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,26 +47,43 @@ export const ProfileSettings = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setLogoPreview(reader.result as string);
     };
     reader.readAsDataURL(file);
 
-    // Upload
     setIsUploading(true);
     await onUploadLogo(file);
     setIsUploading(false);
   };
 
-  const handleColorChange = (key: keyof BrandingColors, value: string) => {
-    setColors(prev => ({ ...prev, [key]: value }));
+  const handleThemeSelect = (themeId: string) => {
+    setSelectedTheme(themeId);
+    const theme = PREDEFINED_THEMES.find(t => t.id === themeId);
+    if (theme && themeId !== 'custom') {
+      onSaveTheme(themeId, theme.colors);
+    }
   };
 
-  const handleSaveColors = () => {
-    onSaveColors(colors);
+  const handleColorChange = (key: keyof BrandingColors, value: string) => {
+    setCustomColors(prev => ({ ...prev, [key]: value }));
   };
+
+  const handleSaveCustomColors = () => {
+    setSelectedTheme('custom');
+    onSaveColors(customColors);
+  };
+
+  const getPreviewColors = (): BrandingColors => {
+    if (selectedTheme === 'custom') {
+      return customColors;
+    }
+    const theme = PREDEFINED_THEMES.find(t => t.id === selectedTheme);
+    return theme?.colors || currentColors;
+  };
+
+  const previewColors = getPreviewColors();
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -88,7 +110,7 @@ export const ProfileSettings = ({
             </TabsTrigger>
             <TabsTrigger value="colors" className="text-xs">
               <Palette className="w-3 h-3 mr-1" />
-              Colores
+              Temas
             </TabsTrigger>
           </TabsList>
 
@@ -152,106 +174,157 @@ export const ProfileSettings = ({
 
           <TabsContent value="colors">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="primary">Color primario</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="primary"
-                      type="color"
-                      value={colors.primary_color}
-                      onChange={(e) => handleColorChange('primary_color', e.target.value)}
-                      className="w-12 h-10 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={colors.primary_color}
-                      onChange={(e) => handleColorChange('primary_color', e.target.value)}
-                      className="flex-1 h-10 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="secondary">Color secundario</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="secondary"
-                      type="color"
-                      value={colors.secondary_color}
-                      onChange={(e) => handleColorChange('secondary_color', e.target.value)}
-                      className="w-12 h-10 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={colors.secondary_color}
-                      onChange={(e) => handleColorChange('secondary_color', e.target.value)}
-                      className="flex-1 h-10 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="background">Color de fondo</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="background"
-                      type="color"
-                      value={colors.background_color}
-                      onChange={(e) => handleColorChange('background_color', e.target.value)}
-                      className="w-12 h-10 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={colors.background_color}
-                      onChange={(e) => handleColorChange('background_color', e.target.value)}
-                      className="flex-1 h-10 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="text">Color de texto</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="text"
-                      type="color"
-                      value={colors.text_color}
-                      onChange={(e) => handleColorChange('text_color', e.target.value)}
-                      className="w-12 h-10 p-1 cursor-pointer"
-                    />
-                    <Input
-                      value={colors.text_color}
-                      onChange={(e) => handleColorChange('text_color', e.target.value)}
-                      className="flex-1 h-10 text-xs"
-                    />
-                  </div>
+              {/* Predefined Themes */}
+              <div className="space-y-2">
+                <Label>Temas predefinidos</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {PREDEFINED_THEMES.filter(t => t.id !== 'custom').map((theme) => (
+                    <button
+                      key={theme.id}
+                      onClick={() => handleThemeSelect(theme.id)}
+                      className={`relative p-3 rounded-xl border-2 transition-all ${
+                        selectedTheme === theme.id
+                          ? 'border-primary ring-2 ring-primary/20'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      style={{ backgroundColor: theme.colors.background_color }}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="flex gap-1">
+                          <div
+                            className="w-4 h-4 rounded-full"
+                            style={{ backgroundColor: theme.colors.primary_color }}
+                          />
+                          <div
+                            className="w-4 h-4 rounded-full"
+                            style={{ backgroundColor: theme.colors.secondary_color }}
+                          />
+                        </div>
+                        <span
+                          className="text-xs font-medium"
+                          style={{ color: theme.colors.text_color }}
+                        >
+                          {theme.name}
+                        </span>
+                      </div>
+                      {selectedTheme === theme.id && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                          <Check className="w-3 h-3 text-primary-foreground" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl border" style={{ 
-                backgroundColor: colors.background_color,
-                borderColor: colors.primary_color 
-              }}>
-                <p className="text-sm mb-2" style={{ color: colors.text_color }}>
-                  Vista previa de colores
-                </p>
-                <div className="flex gap-2">
-                  <div 
-                    className="px-3 py-1.5 rounded-lg text-white text-sm"
-                    style={{ backgroundColor: colors.primary_color }}
-                  >
-                    Botón primario
+              {/* Custom Colors Section */}
+              <div className="pt-4 border-t border-border">
+                <Label className="mb-3 block">Personalizar colores</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="primary" className="text-xs">Primario</Label>
+                    <div className="flex gap-1">
+                      <Input
+                        id="primary"
+                        type="color"
+                        value={customColors.primary_color}
+                        onChange={(e) => handleColorChange('primary_color', e.target.value)}
+                        className="w-10 h-8 p-0.5 cursor-pointer"
+                      />
+                      <Input
+                        value={customColors.primary_color}
+                        onChange={(e) => handleColorChange('primary_color', e.target.value)}
+                        className="flex-1 h-8 text-xs"
+                      />
+                    </div>
                   </div>
-                  <div 
-                    className="px-3 py-1.5 rounded-lg text-white text-sm"
-                    style={{ backgroundColor: colors.secondary_color }}
-                  >
-                    Secundario
+
+                  <div className="space-y-1">
+                    <Label htmlFor="secondary" className="text-xs">Secundario</Label>
+                    <div className="flex gap-1">
+                      <Input
+                        id="secondary"
+                        type="color"
+                        value={customColors.secondary_color}
+                        onChange={(e) => handleColorChange('secondary_color', e.target.value)}
+                        className="w-10 h-8 p-0.5 cursor-pointer"
+                      />
+                      <Input
+                        value={customColors.secondary_color}
+                        onChange={(e) => handleColorChange('secondary_color', e.target.value)}
+                        className="flex-1 h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="background" className="text-xs">Fondo</Label>
+                    <div className="flex gap-1">
+                      <Input
+                        id="background"
+                        type="color"
+                        value={customColors.background_color}
+                        onChange={(e) => handleColorChange('background_color', e.target.value)}
+                        className="w-10 h-8 p-0.5 cursor-pointer"
+                      />
+                      <Input
+                        value={customColors.background_color}
+                        onChange={(e) => handleColorChange('background_color', e.target.value)}
+                        className="flex-1 h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="text" className="text-xs">Texto</Label>
+                    <div className="flex gap-1">
+                      <Input
+                        id="text"
+                        type="color"
+                        value={customColors.text_color}
+                        onChange={(e) => handleColorChange('text_color', e.target.value)}
+                        className="w-10 h-8 p-0.5 cursor-pointer"
+                      />
+                      <Input
+                        value={customColors.text_color}
+                        onChange={(e) => handleColorChange('text_color', e.target.value)}
+                        className="flex-1 h-8 text-xs"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <Button onClick={handleSaveColors} className="w-full">
-                Guardar colores
-              </Button>
+                {/* Preview */}
+                <div
+                  className="p-3 rounded-xl border mt-3"
+                  style={{
+                    backgroundColor: previewColors.background_color,
+                    borderColor: previewColors.primary_color,
+                  }}
+                >
+                  <p className="text-xs mb-2" style={{ color: previewColors.text_color }}>
+                    Vista previa
+                  </p>
+                  <div className="flex gap-2">
+                    <div
+                      className="px-2 py-1 rounded-lg text-white text-xs"
+                      style={{ backgroundColor: previewColors.primary_color }}
+                    >
+                      Primario
+                    </div>
+                    <div
+                      className="px-2 py-1 rounded-lg text-white text-xs"
+                      style={{ backgroundColor: previewColors.secondary_color }}
+                    >
+                      Secundario
+                    </div>
+                  </div>
+                </div>
+
+                <Button onClick={handleSaveCustomColors} className="w-full mt-3">
+                  Guardar colores personalizados
+                </Button>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
