@@ -49,23 +49,38 @@ export type Database = {
       }
       profiles: {
         Row: {
+          background_color: string | null
           created_at: string
           id: string
+          logo_url: string | null
+          primary_color: string | null
+          secondary_color: string | null
           store_name: string
+          text_color: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          background_color?: string | null
           created_at?: string
           id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
           store_name?: string
+          text_color?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          background_color?: string | null
           created_at?: string
           id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
           store_name?: string
+          text_color?: string | null
           updated_at?: string
           user_id?: string
         }
