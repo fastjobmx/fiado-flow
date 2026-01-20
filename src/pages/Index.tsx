@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const { signOut } = useAuth();
-  const { profile, updateStoreName } = useProfile();
+  const { profile, updateStoreName, uploadLogo, updateBrandingColors, getColors } = useProfile();
   const {
     customers,
     transactions,
@@ -79,8 +79,12 @@ const Index = () => {
           onClick={() => setShowSettings(true)}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <Store className="w-5 h-5 text-primary-foreground" />
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center overflow-hidden">
+            {profile?.logo_url ? (
+              <img src={profile.logo_url} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <Store className="w-5 h-5 text-primary-foreground" />
+            )}
           </div>
           <div className="text-left">
             <h1 className="text-xl font-bold text-foreground">{profile?.store_name || 'Mi Tienda'}</h1>
@@ -171,7 +175,11 @@ const Index = () => {
       {showSettings && (
         <ProfileSettings
           currentStoreName={profile?.store_name || 'Mi Tienda'}
-          onSave={updateStoreName}
+          currentLogoUrl={profile?.logo_url || null}
+          currentColors={getColors()}
+          onSaveName={updateStoreName}
+          onUploadLogo={uploadLogo}
+          onSaveColors={updateBrandingColors}
           onClose={() => setShowSettings(false)}
         />
       )}
