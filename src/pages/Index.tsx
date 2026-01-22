@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Plus, Store, BarChart3, LogOut, Loader2, Settings } from 'lucide-react';
+import { Plus, Store, BarChart3, LogOut, Loader2, Settings, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useFiados } from '@/hooks/useFiados';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { useAccountStatus } from '@/hooks/useAccountStatus';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Customer } from '@/types/fiado';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { OverdueAlerts } from '@/components/OverdueAlerts';
@@ -11,10 +14,14 @@ import { CustomerDetail } from '@/components/CustomerDetail';
 import { AddCustomerForm } from '@/components/AddCustomerForm';
 import { PaymentsSummary } from '@/components/PaymentsSummary';
 import { ProfileSettings } from '@/components/ProfileSettings';
+import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
+  const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { currentInvoice } = useAccountStatus();
+  const { isAdmin } = useUserRole();
   const { profile, updateStoreName, uploadLogo, updateTheme, updateBrandingColors, getColors, getActiveTheme } = useProfile();
   const {
     customers,
@@ -92,6 +99,16 @@ const Index = () => {
           </div>
         </button>
         <div className="flex gap-2">
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate('/admin')}
+              title="Panel de Admin"
+            >
+              <Shield className="w-5 h-5" />
+            </Button>
+          )}
           <Button
             variant="outline"
             size="icon"
@@ -118,6 +135,16 @@ const Index = () => {
           </Button>
         </div>
       </div>
+
+      {/* Maintenance Banner */}
+      {currentInvoice && currentInvoice.status !== 'paid' && (
+        <MaintenanceBanner
+          status={currentInvoice.status as 'open' | 'overdue' | 'paid'}
+          amount={currentInvoice.amount_cop}
+          dueDate={currentInvoice.due_at}
+          graceUntil={currentInvoice.grace_until}
+        />
+      )}
 
       {/* Dashboard Card */}
       <div className="mb-6">
