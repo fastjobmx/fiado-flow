@@ -47,13 +47,56 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_invoices: {
+        Row: {
+          amount_cop: number
+          created_at: string
+          due_at: string
+          grace_until: string
+          id: string
+          paid_at: string | null
+          period_ym: string
+          status: Database["public"]["Enums"]["invoice_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_cop?: number
+          created_at?: string
+          due_at: string
+          grace_until: string
+          id?: string
+          paid_at?: string | null
+          period_ym: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_cop?: number
+          created_at?: string
+          due_at?: string
+          grace_until?: string
+          id?: string
+          paid_at?: string | null
+          period_ym?: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          account_status: Database["public"]["Enums"]["account_status"]
           active_theme: string | null
           background_color: string | null
           created_at: string
           id: string
+          last_maintenance_paid_at: string | null
           logo_url: string | null
+          maintenance_monthly_price_cop: number
+          next_maintenance_due_at: string | null
           primary_color: string | null
           secondary_color: string | null
           store_name: string
@@ -62,11 +105,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_status?: Database["public"]["Enums"]["account_status"]
           active_theme?: string | null
           background_color?: string | null
           created_at?: string
           id?: string
+          last_maintenance_paid_at?: string | null
           logo_url?: string | null
+          maintenance_monthly_price_cop?: number
+          next_maintenance_due_at?: string | null
           primary_color?: string | null
           secondary_color?: string | null
           store_name?: string
@@ -75,11 +122,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_status?: Database["public"]["Enums"]["account_status"]
           active_theme?: string | null
           background_color?: string | null
           created_at?: string
           id?: string
+          last_maintenance_paid_at?: string | null
           logo_url?: string | null
+          maintenance_monthly_price_cop?: number
+          next_maintenance_due_at?: string | null
           primary_color?: string | null
           secondary_color?: string | null
           store_name?: string
@@ -127,14 +178,45 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      run_maintenance_billing: { Args: { now_ts?: string }; Returns: undefined }
     }
     Enums: {
+      account_status: "pending" | "active" | "inactive"
+      app_role: "admin" | "store_owner"
+      invoice_status: "open" | "paid" | "overdue" | "inactive"
       transaction_type: "debt" | "payment"
     }
     CompositeTypes: {
@@ -263,6 +345,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_status: ["pending", "active", "inactive"],
+      app_role: ["admin", "store_owner"],
+      invoice_status: ["open", "paid", "overdue", "inactive"],
       transaction_type: ["debt", "payment"],
     },
   },
