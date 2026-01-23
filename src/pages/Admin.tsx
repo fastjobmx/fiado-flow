@@ -62,7 +62,8 @@ const Admin = () => {
 
   const filteredUsers = users.filter(u => 
     u.store_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (u.display_name && u.display_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const currentPeriod = new Date().toISOString().slice(0, 7);
@@ -206,6 +207,7 @@ const Admin = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Usuario</TableHead>
                     <TableHead>Tienda</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Clientes</TableHead>
@@ -219,9 +221,12 @@ const Admin = () => {
                     <TableRow key={user.user_id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{user.store_name}</p>
+                          <p className="font-medium">{user.display_name || 'Sin nombre'}</p>
                           <p className="text-xs text-muted-foreground">{user.email}</p>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium">{user.store_name}</p>
                       </TableCell>
                       <TableCell>{getStatusBadge(user.account_status)}</TableCell>
                       <TableCell className="text-right">{user.total_customers}</TableCell>
@@ -267,7 +272,7 @@ const Admin = () => {
                   ))}
                   {filteredUsers.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         No se encontraron usuarios
                       </TableCell>
                     </TableRow>

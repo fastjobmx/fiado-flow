@@ -207,19 +207,13 @@ export type Database = {
       }
     }
     Views: {
-      admin_users_view: {
-        Row: {
-          created_at: string | null
-          display_name: string | null
-          email: string | null
-          status: Database["public"]["Enums"]["account_status"] | null
-          store_name: string | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
+      get_user_email_for_admin: {
+        Args: { target_user_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

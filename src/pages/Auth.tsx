@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Store, Mail, Lock, Loader2 } from 'lucide-react';
+import { Store, Mail, Lock, Loader2, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const { user, loading } = useAuth();
@@ -14,6 +15,7 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signIn, signUp, signInWithGoogle } = useAuth();
 
@@ -31,25 +33,56 @@ const Auth = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isLogin && !displayName.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Por favor ingresa tu nombre',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
-      const { error } = isLogin
-        ? await signIn(email, password)
-        : await signUp(email, password);
-
-      if (error) {
-        toast({
-          title: 'Error',
-          description: error.message,
-          variant: 'destructive',
-        });
-      } else if (!isLogin) {
-        toast({
-          title: '¡Cuenta creada!',
-          description: 'Ya puedes iniciar sesión.',
-        });
-        setIsLogin(true);
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            title: 'Error',
+            description: error.message,
+            variant: 'destructive',
+          });
+        }
+      } else {
+        const { error } = await signUp(email, password);
+        if (error) {
+          toast({
+            title: 'Error',
+            description: error.message,
+            variant: 'destructive',
+          });
+        } else {
+          // Update profile with display name after signup
+          // Wait a moment for the trigger to create the profile
+          setTimeout(async () => {
+            const { data: { user: newUser } } = await supabase.auth.getUser();
+            if (newUser) {
+              await supabase
+                .from('profiles')
+                .update({ display_name: displayName.trim() })
+                .eq('user_id', newUser.id);
+            }
+          }, 1000);
+          
+          toast({
+            title: '¡Cuenta creada!',
+            description: 'Tu cuenta está pendiente de aprobación por el administrador.',
+          });
+          setIsLogin(true);
+          setDisplayName('');
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -125,6 +158,24 @@ const Auth = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Nombre completo</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="displayName"
+                  type="text"
+                  placeholder="Tu nombre"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="pl-10"
+                  required={!isLogin}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="email">Correo electrónico</Label>
             <div className="relative">
