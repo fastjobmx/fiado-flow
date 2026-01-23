@@ -99,6 +99,7 @@ export type Database = {
           next_maintenance_due_at: string | null
           primary_color: string | null
           secondary_color: string | null
+          status: string | null
           store_name: string
           text_color: string | null
           updated_at: string
@@ -116,6 +117,7 @@ export type Database = {
           next_maintenance_due_at?: string | null
           primary_color?: string | null
           secondary_color?: string | null
+          status?: string | null
           store_name?: string
           text_color?: string | null
           updated_at?: string
@@ -133,6 +135,7 @@ export type Database = {
           next_maintenance_due_at?: string | null
           primary_color?: string | null
           secondary_color?: string | null
+          status?: string | null
           store_name?: string
           text_color?: string | null
           updated_at?: string
@@ -201,7 +204,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_users_view: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          status: string | null
+          store_name: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
@@ -211,6 +223,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: never; Returns: boolean }
       run_maintenance_billing: { Args: { now_ts?: string }; Returns: undefined }
     }
     Enums: {
