@@ -92,6 +92,7 @@ export type Database = {
           active_theme: string | null
           background_color: string | null
           created_at: string
+          display_name: string | null
           id: string
           last_maintenance_paid_at: string | null
           logo_url: string | null
@@ -110,6 +111,7 @@ export type Database = {
           active_theme?: string | null
           background_color?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
           last_maintenance_paid_at?: string | null
           logo_url?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           active_theme?: string | null
           background_color?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
           last_maintenance_paid_at?: string | null
           logo_url?: string | null
@@ -207,8 +210,9 @@ export type Database = {
       admin_users_view: {
         Row: {
           created_at: string | null
+          display_name: string | null
           email: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["account_status"] | null
           store_name: string | null
           user_id: string | null
         }
