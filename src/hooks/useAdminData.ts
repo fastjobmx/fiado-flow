@@ -7,6 +7,7 @@ type AccountStatus = 'pending' | 'active' | 'inactive';
 interface UserWithProfile {
   user_id: string;
   email: string;
+  display_name: string | null;
   store_name: string;
   account_status: AccountStatus;
   maintenance_monthly_price_cop: number;
@@ -74,6 +75,19 @@ export const useAdminData = () => {
 
       if (invoicesError) throw invoicesError;
 
+      // Fetch emails for each user using the secure function
+      const emailPromises = (profiles || []).map(async (p) => {
+        const { data } = await supabase.rpc('get_user_email_for_admin', { 
+          target_user_id: p.user_id 
+        });
+        return { user_id: p.user_id, email: data as string | null };
+      });
+      const emailResults = await Promise.all(emailPromises);
+      const emailMap = emailResults.reduce((acc, { user_id, email }) => {
+        acc[user_id] = email;
+        return acc;
+      }, {} as Record<string, string | null>);
+
       // Aggregate customer data per owner
       const customersByOwner = customers?.reduce((acc, c) => {
         if (!acc[c.owner_id]) {
@@ -84,10 +98,11 @@ export const useAdminData = () => {
         return acc;
       }, {} as Record<string, { count: number; debt: number }>);
 
-      // Build users list - we'll use profile data since we can't access auth.users directly
+      // Build users list with real email data
       const usersData: UserWithProfile[] = (profiles || []).map(p => ({
         user_id: p.user_id,
-        email: `Usuario ${p.user_id.slice(0, 8)}...`, // Placeholder since we can't access auth.users
+        email: emailMap[p.user_id] || 'Email no disponible',
+        display_name: p.display_name || null,
         store_name: p.store_name,
         account_status: p.account_status as AccountStatus,
         maintenance_monthly_price_cop: Number(p.maintenance_monthly_price_cop),
