@@ -140,3 +140,18 @@
     opacity: 0.7;
   }
 }
+
+/* Ajustes móviles globales */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Reservas de espacio seguro inferior para iOS (cuando se necesite) */
+.safe-bottom-space {
+  padding-bottom: env(safe-area-inset-bottom);
+}

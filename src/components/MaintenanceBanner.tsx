@@ -10,7 +10,7 @@ interface MaintenanceBannerProps {
   graceUntil: string;
 }
 
-const ADMIN_WHATSAPP = '+573001234567';
+const ADMIN_WHATSAPP = '+573022323472';
 
 export const MaintenanceBanner = ({ status, amount, dueDate, graceUntil }: MaintenanceBannerProps) => {
   const [copied, setCopied] = useState(false);

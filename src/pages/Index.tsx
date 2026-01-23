@@ -13,16 +13,18 @@ import { CustomerList } from '@/components/CustomerList';
 import { CustomerDetail } from '@/components/CustomerDetail';
 import { AddCustomerForm } from '@/components/AddCustomerForm';
 import { PaymentsSummary } from '@/components/PaymentsSummary';
-import { ProfileSettings } from '@/components/ProfileSettings';
+// Import incorrecto (exportación nombrada) — cámbialo:
+import ProfileSettings from '@/components/ProfileSettings';
 import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { Button } from '@/components/ui/button';
+import { MobileActionBar } from '@/components/MobileActionBar';
 
 const Index = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { currentInvoice } = useAccountStatus();
   const { isAdmin } = useUserRole();
-  const { profile, updateStoreName, uploadLogo, updateTheme, updateBrandingColors, getColors, getActiveTheme } = useProfile();
+  const { profile, updateStoreName, uploadLogo, updateTheme, updateBrandingColors, getColors, getActiveTheme, updatePaymentContacts, updateMessageTemplates, getPaymentContacts, getMessageTemplates } = useProfile();
   const {
     customers,
     transactions,
@@ -79,7 +81,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 pb-24 max-w-md mx-auto">
+    <div className="min-h-screen bg-background p-4 pb-32 max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button 
@@ -168,17 +170,17 @@ const Index = () => {
         onCustomerClick={setSelectedCustomer}
       />
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 left-6 max-w-md mx-auto">
-        <Button
-          onClick={() => setShowAddCustomer(true)}
-          className="w-full gap-2 h-14 text-base shadow-lg"
-        >
-          <Plus className="w-5 h-5" />
-          Agregar Cliente
-        </Button>
-      </div>
+      {/* Barra inferior móvil */}
+      <MobileActionBar
+        onAddCustomer={() => setShowAddCustomer(true)}
+        onShowSummary={() => setShowPaymentsSummary(true)}
+        onShowSettings={() => setShowSettings(true)}
+      />
 
+      {/* Reservar espacio para que el contenido no quede debajo de la barra */}
+      <div className="h-20" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
+
+      {/* Modales */}
       {/* Add Customer Modal */}
       {showAddCustomer && (
         <AddCustomerForm
@@ -209,6 +211,10 @@ const Index = () => {
           onUploadLogo={uploadLogo}
           onSaveTheme={updateTheme}
           onSaveColors={updateBrandingColors}
+          paymentContacts={getPaymentContacts()}
+          messageTemplates={getMessageTemplates()}
+          onSavePaymentContacts={updatePaymentContacts}
+          onSaveMessageTemplates={updateMessageTemplates}
           onClose={() => setShowSettings(false)}
         />
       )}

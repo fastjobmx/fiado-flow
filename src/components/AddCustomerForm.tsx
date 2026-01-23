@@ -45,6 +45,7 @@ export const AddCustomerForm = ({ onSubmit, onCancel }: AddCustomerFormProps) =>
               placeholder="Ej: María García"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
               autoFocus
             />
           </div>
@@ -53,13 +54,22 @@ export const AddCustomerForm = ({ onSubmit, onCancel }: AddCustomerFormProps) =>
             <label className="text-sm text-muted-foreground mb-1 block">
               Número de celular
             </label>
-            <Input
-              type="tel"
-              inputMode="numeric"
-              placeholder="Ej: 3001234567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-            />
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-2 rounded-md border border-border bg-card text-sm text-muted-foreground shrink-0">
+                +57
+              </div>
+              <Input
+                type="tel"
+                inputMode="numeric"
+                placeholder="3001234567"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                autoComplete="tel"
+                maxLength={10}
+                className="flex-1"
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Ingresa 10 dígitos, sin espacios ni guiones.</p>
           </div>
 
           <div className="flex gap-3 pt-2">

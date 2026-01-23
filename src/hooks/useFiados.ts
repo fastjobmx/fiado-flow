@@ -170,7 +170,7 @@ export const useFiados = () => {
   };
 
   const addPayment = async (customerId: string, amount: number, description: string) => {
-    if (!user) return;
+    if (!user) return null;
 
     try {
       // Insert transaction
@@ -190,7 +190,7 @@ export const useFiados = () => {
 
       // Update customer
       const customer = customers.find((c) => c.id === customerId);
-      if (!customer) return;
+      if (!customer) return null;
 
       const newDebt = Math.max(0, customer.totalDebt - amount);
       const now = new Date();
@@ -228,6 +228,7 @@ export const useFiados = () => {
         description: 'No se pudo registrar el pago',
         variant: 'destructive',
       });
+      return null;
     }
   };
 

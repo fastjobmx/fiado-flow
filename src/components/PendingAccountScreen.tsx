@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 
-const ADMIN_WHATSAPP = '+573001234567'; // Replace with actual admin number
+const ADMIN_WHATSAPP = '+573022323472'; // Replace with actual admin number
 
 export const PendingAccountScreen = () => {
   const { signOut } = useAuth();

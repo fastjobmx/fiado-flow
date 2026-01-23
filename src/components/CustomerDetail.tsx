@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { TransactionForm } from './TransactionForm';
 import { EditCustomerForm } from './EditCustomerForm';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
+import { useProfile } from '@/hooks/useProfile';
+import { formatTemplate, encodeWhatsAppMessage } from '@/lib/messages';
+import { InvoiceModal } from './InvoiceModal';
 
 interface CustomerDetailProps {
   customer: Customer;
@@ -47,17 +50,40 @@ export const CustomerDetail = ({
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [invoiceTx, setInvoiceTx] = useState<Transaction | null>(null);
+
+  const { profile, getMessageTemplates, getPaymentContacts } = useProfile();
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('es-CO', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  };
 
   const sendWhatsAppReminder = () => {
-    const message = encodeURIComponent(
-      `¡Hola ${customer.name.split(' ')[0]}! 👋\n\n` +
-      `Te escribo de la tienda para recordarte que tienes un saldo pendiente de ${formatCurrency(customer.totalDebt)}.\n\n` +
-      `Puedes pagar por:\n` +
-      `💜 Nequi: 3001234567\n` +
-      `🧡 Daviplata: 3001234567\n\n` +
-      `¡Gracias por tu preferencia! 🙏`
-    );
-    window.open(`https://wa.me/57${customer.phone}?text=${message}`, '_blank');
+    const templates = getMessageTemplates();
+    const contacts = getPaymentContacts();
+    const message = formatTemplate(templates.message_template_reminder || '', {
+      customer_first_name: customer.name.split(' ')[0],
+      customer_name: customer.name,
+      amount: formatCurrency(customer.totalDebt),
+      store_name: profile?.store_name || 'Mi Tienda',
+      nequi: contacts.nequi_number || '',
+      daviplata: contacts.daviplata_number || '',
+      whatsapp: contacts.whatsapp_number || '',
+    });
+    window.open(`https://wa.me/57${customer.phone}?text=${encodeWhatsAppMessage(message)}`, '_blank');
   };
 
   return (
@@ -112,22 +138,29 @@ export const CustomerDetail = ({
         </Button>
       </div>
 
-      <div className="flex gap-3 mb-6">
-        <Button
-          onClick={() => setShowDebtForm(true)}
-          variant="outline"
-          className="flex-1 gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-        >
-          <Plus className="w-4 h-4" />
-          Agregar Fiado
-        </Button>
-        <Button
-          onClick={() => setShowPaymentForm(true)}
-          className="flex-1 gap-2"
-        >
-          <Minus className="w-4 h-4" />
-          Registrar Pago
-        </Button>
+      {/* Acciones principales en barra inferior */}
+      <div className="h-24" /> {/* Espaciador para que el historial no quede debajo */}
+      <div
+        className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="max-w-md mx-auto px-4 py-3 grid grid-cols-2 gap-3">
+          <Button
+            onClick={() => setShowDebtForm(true)}
+            variant="outline"
+            className="h-12 gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+          >
+            <Plus className="w-4 h-4" />
+            Agregar Fiado
+          </Button>
+          <Button
+            onClick={() => setShowPaymentForm(true)}
+            className="h-12 gap-2"
+          >
+            <Minus className="w-4 h-4" />
+            Registrar Pago
+          </Button>
+        </div>
       </div>
 
       {showDebtForm && (
@@ -177,9 +210,7 @@ export const CustomerDetail = ({
       <div className="mt-6">
         <h3 className="font-semibold text-foreground mb-3">Historial</h3>
         {transactions.length === 0 ? (
-          <p className="text-center text-muted-foreground py-6">
-            Sin transacciones aún
-          </p>
+          <p className="text-center text-muted-foreground py-6">Sin transacciones aún</p>
         ) : (
           <div className="space-y-2">
             {transactions.map((t) => (
@@ -194,18 +225,41 @@ export const CustomerDetail = ({
                   <p className="text-sm text-muted-foreground">{t.description}</p>
                   <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
                 </div>
-                <span
-                  className={`font-semibold ${
-                    t.type === 'debt' ? 'text-destructive' : 'text-success'
-                  }`}
-                >
-                  {t.type === 'debt' ? '+' : '-'}{formatCurrency(t.amount)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`font-semibold ${t.type === 'debt' ? 'text-destructive' : 'text-success'}`}
+                  >
+                    {t.type === 'debt' ? '+' : '-'}{formatCurrency(t.amount)}
+                  </span>
+                  {t.type === 'payment' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInvoiceTx(t)}
+                      title="Ver/Enviar factura"
+                    >
+                      Recibo
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {invoiceTx && (
+        <InvoiceModal
+          storeName={profile?.store_name || 'Mi Tienda'}
+          logoUrl={profile?.logo_url || null}
+          contacts={getPaymentContacts()}
+          templates={{ receiptTemplate: getMessageTemplates().message_template_receipt || '' }}
+          customer={customer}
+          transaction={invoiceTx}
+          remainingDebt={customer.totalDebt}
+          onClose={() => setInvoiceTx(null)}
+        />
+      )}
     </div>
   );
 };

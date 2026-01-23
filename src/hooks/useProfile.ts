@@ -1,303 +1,334 @@
-import { useState, useEffect, useCallback } from 'react';
+// ============================================================================
+// ARCHIVO 2: useProfile.ts
+// ============================================================================
+// Guarda este código en: src/hooks/useProfile.ts
+
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
-interface Profile {
-  id: string;
-  user_id: string;
-  store_name: string;
-  logo_url: string | null;
-  primary_color: string | null;
-  secondary_color: string | null;
-  background_color: string | null;
-  text_color: string | null;
-  active_theme: string | null;
-}
-
-export interface BrandingColors {
+type BrandingColors = {
   primary_color: string;
   secondary_color: string;
   background_color: string;
   text_color: string;
-}
+};
 
-export interface Theme {
-  id: string;
-  name: string;
-  colors: BrandingColors;
-}
+type ProfileExtras = {
+  whatsapp_number?: string | null;
+  nequi_number?: string | null;
+  daviplata_number?: string | null;
+  payment_accounts?: any[] | null;
+  message_template_reminder?: string | null;
+  message_template_receipt?: string | null;
+};
 
-export const PREDEFINED_THEMES: Theme[] = [
-  {
-    id: 'light',
-    name: 'Claro',
-    colors: {
-      primary_color: '#10B981',
-      secondary_color: '#059669',
-      background_color: '#F0FDF4',
-      text_color: '#1F2937',
-    },
-  },
-  {
-    id: 'dark',
-    name: 'Oscuro',
-    colors: {
-      primary_color: '#22C55E',
-      secondary_color: '#16A34A',
-      background_color: '#1A1A2E',
-      text_color: '#E5E7EB',
-    },
-  },
-  {
-    id: 'nequi',
-    name: 'Nequi',
-    colors: {
-      primary_color: '#DA0081',
-      secondary_color: '#9B0060',
-      background_color: '#FDF2F8',
-      text_color: '#1F2937',
-    },
-  },
-  {
-    id: 'ocean',
-    name: 'Océano',
-    colors: {
-      primary_color: '#0EA5E9',
-      secondary_color: '#0284C7',
-      background_color: '#F0F9FF',
-      text_color: '#0F172A',
-    },
-  },
-  {
-    id: 'sunset',
-    name: 'Atardecer',
-    colors: {
-      primary_color: '#F97316',
-      secondary_color: '#EA580C',
-      background_color: '#FFF7ED',
-      text_color: '#1C1917',
-    },
-  },
-  {
-    id: 'custom',
-    name: 'Personalizado',
-    colors: {
-      primary_color: '#10B981',
-      secondary_color: '#059669',
-      background_color: '#F0FDF4',
-      text_color: '#1F2937',
-    },
-  },
-];
+// Constantes
+const DEFAULT_COLORS: BrandingColors = {
+  primary_color: '#10B981',
+  secondary_color: '#059669',
+  background_color: '#F0FDF4',
+  text_color: '#1F2937',
+};
 
-const DEFAULT_COLORS: BrandingColors = PREDEFINED_THEMES[0].colors;
+const DEFAULT_TEMPLATES = {
+  message_template_reminder:
+    '¡Hola {customer_first_name}! Tienes un saldo pendiente de {amount}. Puedes pagar por Nequi {nequi}, Daviplata {daviplata}. Tienda: {store_name}.',
+  message_template_receipt:
+    'Recibo #{transaction_id} - {store_name}\nCliente: {customer_name}\nPago: {amount}\nFecha: {date}\nSaldo restante: {remaining}\nContacto: {whatsapp}',
+};
+
+// Utilidades
+const normalizePhone = (value?: string | null) =>
+  (value || '').replace(/\D/g, '').slice(0, 10) || null;
+
+const getColorsFromProfile = (p?: Tables<'profiles'> | null): BrandingColors => ({
+  primary_color: p?.primary_color || DEFAULT_COLORS.primary_color,
+  secondary_color: p?.secondary_color || DEFAULT_COLORS.secondary_color,
+  background_color: p?.background_color || DEFAULT_COLORS.background_color,
+  text_color: p?.text_color || DEFAULT_COLORS.text_color,
+});
+
+const hexToHsl = (hex: string) => {
+  const sHex = hex.replace('#', '');
+  const bigint = parseInt(sHex, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+
+  const rNorm = r / 255;
+  const gNorm = g / 255;
+  const bNorm = b / 255;
+
+  const max = Math.max(rNorm, gNorm, bNorm);
+  const min = Math.min(rNorm, gNorm, bNorm);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  const d = max - min;
+  if (d !== 0) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rNorm:
+        h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0);
+        break;
+      case gNorm:
+        h = (bNorm - rNorm) / d + 2;
+        break;
+      case bNorm:
+        h = (rNorm - gNorm) / d + 4;
+        break;
+    }
+    h /= 6;
+  }
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+};
+
+const applyThemeToDocument = (colors: BrandingColors) => {
+  const root = document.documentElement;
+  root.style.setProperty('--background', hexToHsl(colors.background_color));
+  root.style.setProperty('--foreground', hexToHsl(colors.text_color));
+  root.style.setProperty('--primary', hexToHsl(colors.primary_color));
+  root.style.setProperty('--secondary', hexToHsl(colors.secondary_color));
+};
 
 export const useProfile = () => {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Tables<'profiles'> | (Tables<'profiles'> & ProfileExtras) | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [paymentContactsState, setPaymentContactsState] = useState({
+    whatsapp_number: null as string | null,
+    nequi_number: null as string | null,
+    daviplata_number: null as string | null,
+    payment_accounts: [] as any[],
+  });
+  const [messageTemplatesState, setMessageTemplatesState] = useState({
+    message_template_reminder: DEFAULT_TEMPLATES.message_template_reminder,
+    message_template_receipt: DEFAULT_TEMPLATES.message_template_receipt,
+  });
 
+  const storageKey = (base: string) => `${base}:${user?.id || 'anon'}`;
+
+  // Cargar perfil desde Supabase
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
-  // Apply theme colors to CSS variables
-  const applyThemeToDOM = useCallback((colors: BrandingColors) => {
-    const root = document.documentElement;
-    
-    // Convert hex to HSL for CSS variables
-    const hexToHSL = (hex: string) => {
-      const r = parseInt(hex.slice(1, 3), 16) / 255;
-      const g = parseInt(hex.slice(3, 5), 16) / 255;
-      const b = parseInt(hex.slice(5, 7), 16) / 255;
-
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      let h = 0;
-      let s = 0;
-      const l = (max + min) / 2;
-
-      if (max !== min) {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-          case g: h = ((b - r) / d + 2) / 6; break;
-          case b: h = ((r - g) / d + 4) / 6; break;
-        }
+    const loadProfile = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
       }
 
-      return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data) {
+          const insertPayload: TablesInsert<'profiles'> = {
+            user_id: user.id,
+            store_name: 'Mi Tienda',
+            active_theme: 'light',
+            ...DEFAULT_COLORS,
+          };
+          const { error: insertError } = await supabase.from('profiles').insert(insertPayload);
+          if (insertError) throw insertError;
+
+          const { data: created, error: createdError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          if (createdError) throw createdError;
+          setProfile(created as any);
+        } else {
+          setProfile(data as any);
+        }
+      } catch (e: any) {
+        console.error('Error loading profile:', e);
+        toast({
+          title: 'Error cargando perfil',
+          description: e?.message || 'No fue posible cargar tu perfil',
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
-    root.style.setProperty('--primary', hexToHSL(colors.primary_color));
-    root.style.setProperty('--accent', hexToHSL(colors.secondary_color));
-    root.style.setProperty('--background', hexToHSL(colors.background_color));
-    root.style.setProperty('--foreground', hexToHSL(colors.text_color));
-    
-    // Determine if dark theme based on background luminance
-    const bgLuminance = parseInt(colors.background_color.slice(5, 7), 16);
-    const isDark = bgLuminance < 128;
-    
-    if (isDark) {
-      root.style.setProperty('--card', hexToHSL(colors.background_color));
-      root.style.setProperty('--card-foreground', hexToHSL(colors.text_color));
-      root.style.setProperty('--muted', `${hexToHSL(colors.background_color).split(' ')[0]} 15% 20%`);
-      root.style.setProperty('--muted-foreground', `${hexToHSL(colors.text_color).split(' ')[0]} 10% 60%`);
-    } else {
-      root.style.setProperty('--card', '0 0% 100%');
-      root.style.setProperty('--card-foreground', hexToHSL(colors.text_color));
-      root.style.setProperty('--muted', `${hexToHSL(colors.background_color).split(' ')[0]} 15% 92%`);
-      root.style.setProperty('--muted-foreground', `${hexToHSL(colors.text_color).split(' ')[0]} 10% 45%`);
-    }
-  }, []);
+    loadProfile();
+  }, [user?.id]);
 
-  const fetchProfile = async () => {
-    if (!user) return;
+  // Cargar datos locales
+  useEffect(() => {
+    try {
+      const rawContacts = localStorage.getItem(storageKey('fiado:paymentContacts'));
+      if (rawContacts) {
+        const parsed = JSON.parse(rawContacts);
+        setPaymentContactsState({
+          whatsapp_number: normalizePhone(parsed.whatsapp_number),
+          nequi_number: normalizePhone(parsed.nequi_number),
+          daviplata_number: normalizePhone(parsed.daviplata_number),
+          payment_accounts: Array.isArray(parsed.payment_accounts) ? parsed.payment_accounts : [],
+        });
+      }
+    } catch {}
     
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (data) {
-        setProfile(data);
-        // Apply saved theme colors
-        const colors = getColorsFromProfile(data);
-        applyThemeToDOM(colors);
+      const rawTemplates = localStorage.getItem(storageKey('fiado:messageTemplates'));
+      if (rawTemplates) {
+        const parsed = JSON.parse(rawTemplates);
+        setMessageTemplatesState({
+          message_template_reminder: parsed.message_template_reminder || DEFAULT_TEMPLATES.message_template_reminder,
+          message_template_receipt: parsed.message_template_receipt || DEFAULT_TEMPLATES.message_template_receipt,
+        });
       }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    } catch {}
+  }, [user?.id]);
 
-  const getColorsFromProfile = (prof: Profile): BrandingColors => {
-    return {
-      primary_color: prof.primary_color || DEFAULT_COLORS.primary_color,
-      secondary_color: prof.secondary_color || DEFAULT_COLORS.secondary_color,
-      background_color: prof.background_color || DEFAULT_COLORS.background_color,
-      text_color: prof.text_color || DEFAULT_COLORS.text_color,
-    };
-  };
+  // Aplicar tema al documento
+  useEffect(() => {
+    const colors = getColorsFromProfile(profile as Tables<'profiles'> | null);
+    applyThemeToDocument(colors);
+  }, [
+    profile?.primary_color,
+    profile?.secondary_color,
+    profile?.background_color,
+    profile?.text_color,
+  ]);
 
-  const updateStoreName = async (storeName: string) => {
-    if (!user || !profile) return;
+  // Métodos de actualización
+  const updateProfileFields = async (
+    fields: Partial<TablesUpdate<'profiles'>> & Partial<ProfileExtras>,
+    successMsg = 'Perfil actualizado'
+  ) => {
+    if (!user?.id) return;
 
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ store_name: storeName })
+        .update(fields as any)
         .eq('user_id', user.id);
 
-      if (error) throw error;
-      
-      setProfile({ ...profile, store_name: storeName });
-      toast.success('Nombre de tienda actualizado');
-    } catch (error) {
-      console.error('Error updating store name:', error);
-      toast.error('Error al actualizar el nombre');
+      if (error) {
+        if (error.code === 'PGRST204') {
+          toast({
+            title: 'Actualiza tu esquema',
+            description:
+              'Faltan columnas en la tabla "profiles". Ejecuta las migraciones de Supabase o añade las columnas de contactos/plantillas.',
+          });
+          return;
+        }
+        throw error;
+      }
+
+      setProfile((prev) => (prev ? { ...prev, ...fields } : prev));
+      toast({ title: successMsg });
+    } catch (e: any) {
+      console.error('Error updating profile:', e);
+      toast({
+        title: 'Error',
+        description: e?.message || 'No fue posible actualizar el perfil',
+      });
     }
   };
 
+  const updateStoreName = async (storeName: string) => {
+    await updateProfileFields({ store_name: storeName?.trim() || 'Mi Tienda' }, 'Nombre de tienda actualizado');
+  };
+
   const uploadLogo = async (file: File): Promise<string | null> => {
-    if (!user) return null;
+    if (!user?.id) return null;
+
+    const bucket = 'logos';
+    const path = `${user.id}/${Date.now()}_${file.name}`;
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/logo.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, {
+        cacheControl: '3600',
+        upsert: true,
+      });
+      if (uploadError) {
+        if ((uploadError.message || '').toLowerCase().includes('not found')) {
+          toast({
+            title: 'Bucket faltante',
+            description: 'Crea el bucket "logos" en Supabase Storage y habilita acceso público.',
+          });
+        }
+        throw uploadError;
+      }
 
-      // Delete old logo if exists
-      await supabase.storage.from('store-logos').remove([filePath]);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(bucket).getPublicUrl(path);
 
-      const { error: uploadError } = await supabase.storage
-        .from('store-logos')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('store-logos')
-        .getPublicUrl(filePath);
-
-      // Update profile with new logo URL
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ logo_url: publicUrl })
-        .eq('user_id', user.id);
-
-      if (updateError) throw updateError;
-
-      setProfile(prev => prev ? { ...prev, logo_url: publicUrl } : null);
-      toast.success('Logo actualizado');
+      await updateProfileFields({ logo_url: publicUrl }, 'Logo actualizado');
       return publicUrl;
-    } catch (error) {
-      console.error('Error uploading logo:', error);
-      toast.error('Error al subir el logo');
+    } catch (e: any) {
+      console.error('Error uploading logo:', e);
+      toast({
+        title: 'Error al subir logo',
+        description: e?.message || 'No fue posible subir el logo',
+      });
       return null;
     }
   };
 
-  const updateTheme = async (themeId: string, colors: BrandingColors) => {
-    if (!user || !profile) return;
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          active_theme: themeId,
-          ...colors 
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      
-      setProfile({ ...profile, active_theme: themeId, ...colors });
-      applyThemeToDOM(colors);
-      toast.success('Tema actualizado');
-    } catch (error) {
-      console.error('Error updating theme:', error);
-      toast.error('Error al actualizar el tema');
+  const updateTheme = async (themeId: string, colors?: BrandingColors) => {
+    const payload: Partial<TablesUpdate<'profiles'>> = {
+      active_theme: themeId || 'light',
+    };
+    if (colors) {
+      Object.assign(payload, colors);
     }
+    await updateProfileFields(payload, 'Tema actualizado');
   };
 
   const updateBrandingColors = async (colors: BrandingColors) => {
-    if (!user || !profile) return;
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          active_theme: 'custom',
-          ...colors 
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      
-      setProfile({ ...profile, active_theme: 'custom', ...colors });
-      applyThemeToDOM(colors);
-      toast.success('Colores personalizados guardados');
-    } catch (error) {
-      console.error('Error updating colors:', error);
-      toast.error('Error al actualizar los colores');
-    }
+    await updateProfileFields(
+      {
+        ...colors,
+        active_theme: 'custom',
+      },
+      'Colores personalizados guardados'
+    );
   };
 
-  const getColors = (): BrandingColors => {
-    if (!profile) return DEFAULT_COLORS;
-    return getColorsFromProfile(profile);
+  const updatePaymentContacts = async (contacts: {
+    whatsapp_number?: string;
+    nequi_number?: string;
+    daviplata_number?: string;
+    payment_accounts?: any[];
+  }) => {
+    const payload = {
+      whatsapp_number: normalizePhone(contacts.whatsapp_number),
+      nequi_number: normalizePhone(contacts.nequi_number),
+      daviplata_number: normalizePhone(contacts.daviplata_number),
+      payment_accounts: Array.isArray(contacts.payment_accounts) ? contacts.payment_accounts : [],
+    };
+    localStorage.setItem(storageKey('fiado:paymentContacts'), JSON.stringify(payload));
+    setPaymentContactsState(payload);
+    toast({ title: 'Información de pagos guardada' });
   };
 
-  const getActiveTheme = (): string => {
-    return profile?.active_theme || 'light';
+  const updateMessageTemplates = async (templates: {
+    message_template_reminder?: string;
+    message_template_receipt?: string;
+  }) => {
+    const payload = {
+      message_template_reminder:
+        templates.message_template_reminder?.trim() || DEFAULT_TEMPLATES.message_template_reminder,
+      message_template_receipt:
+        templates.message_template_receipt?.trim() || DEFAULT_TEMPLATES.message_template_receipt,
+    };
+    localStorage.setItem(storageKey('fiado:messageTemplates'), JSON.stringify(payload));
+    setMessageTemplatesState(payload);
+    toast({ title: 'Plantillas guardadas' });
   };
 
   return {
@@ -307,8 +338,11 @@ export const useProfile = () => {
     uploadLogo,
     updateTheme,
     updateBrandingColors,
-    getColors,
-    getActiveTheme,
-    applyThemeToDOM,
+    updatePaymentContacts,
+    updateMessageTemplates,
+    getColors: () => getColorsFromProfile(profile as Tables<'profiles'> | null),
+    getActiveTheme: () => profile?.active_theme || 'light',
+    getPaymentContacts: () => paymentContactsState,
+    getMessageTemplates: () => messageTemplatesState,
   };
 };
