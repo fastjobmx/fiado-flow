@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, Copy, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Clock, Copy, CheckCircle, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -50,30 +50,46 @@ export const MaintenanceBanner = ({ status, amount, dueDate, graceUntil }: Maint
   const isOverdue = status === 'overdue';
 
   return (
-    <div className={`rounded-lg p-3 mb-4 ${isOverdue ? 'bg-destructive/10 border border-destructive/20' : 'bg-amber-500/10 border border-amber-500/20'}`}>
+    <div className={`rounded-xl p-4 mb-4 shadow-sm ${isOverdue ? 'bg-destructive/10 border-2 border-destructive/30' : 'bg-amber-50 border-2 border-amber-200'}`}>
       <div className="flex items-start gap-3">
-        {isOverdue ? (
-          <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-        ) : (
-          <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        )}
+        <div className={`p-2 rounded-lg ${isOverdue ? 'bg-destructive/20' : 'bg-amber-100'}`}>
+          {isOverdue ? (
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+          ) : (
+            <Wallet className="w-5 h-5 text-amber-600" />
+          )}
+        </div>
         <div className="flex-1 min-w-0">
-          <p className={`font-medium text-sm ${isOverdue ? 'text-destructive' : 'text-amber-700'}`}>
-            {isOverdue ? 'Pago Vencido' : 'Pago Pendiente'}
+          <div className="flex items-center gap-2">
+            <p className={`font-semibold text-sm ${isOverdue ? 'text-destructive' : 'text-amber-800'}`}>
+              {isOverdue ? '⚠️ Pago Vencido' : '💳 Recordatorio de Pago'}
+            </p>
+          </div>
+          <p className={`text-base font-bold mt-1 ${isOverdue ? 'text-destructive' : 'text-amber-900'}`}>
+            {formatCurrency(amount)}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-1">
             {isOverdue 
-              ? `Límite: ${formatDate(graceUntil)} • ${formatCurrency(amount)}`
-              : `Vence: ${formatDate(dueDate)} • ${formatCurrency(amount)}`
+              ? <>Límite para reactivar: <span className="font-medium text-destructive">{formatDate(graceUntil)}</span></>
+              : <>Vence el <span className="font-medium">{formatDate(dueDate)}</span> • Mantenimiento mensual</>
             }
           </p>
-          <div className="flex gap-2 mt-2">
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={copyPaymentMessage}>
-              {copied ? <CheckCircle className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+          <div className="flex gap-2 mt-3">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-8 text-xs gap-1.5 flex-1" 
+              onClick={copyPaymentMessage}
+            >
+              {copied ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               Copiar mensaje
             </Button>
-            <Button size="sm" className="h-7 text-xs" onClick={openWhatsApp}>
-              WhatsApp
+            <Button 
+              size="sm" 
+              className={`h-8 text-xs flex-1 ${isOverdue ? 'bg-destructive hover:bg-destructive/90' : 'bg-green-600 hover:bg-green-700'}`}
+              onClick={openWhatsApp}
+            >
+              Enviar WhatsApp
             </Button>
           </div>
         </div>
