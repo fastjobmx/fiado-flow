@@ -149,6 +149,23 @@ export const useProfile = () => {
           setProfile(created as any);
         } else {
           setProfile(data as any);
+          
+          // Sincronizar estados locales con datos de la base de datos si existen
+          if (data.whatsapp_number || data.nequi_number || data.daviplata_number) {
+            setPaymentContactsState({
+              whatsapp_number: data.whatsapp_number,
+              nequi_number: data.nequi_number,
+              daviplata_number: data.daviplata_number,
+              payment_accounts: (data as any).payment_accounts || [],
+            });
+          }
+          
+          if (data.message_template_reminder || data.message_template_receipt) {
+            setMessageTemplatesState({
+              message_template_reminder: data.message_template_reminder || DEFAULT_TEMPLATES.message_template_reminder,
+              message_template_receipt: data.message_template_receipt || DEFAULT_TEMPLATES.message_template_receipt,
+            });
+          }
         }
       } catch (e: any) {
         console.error('Error loading profile:', e);
@@ -170,12 +187,18 @@ export const useProfile = () => {
       const rawContacts = localStorage.getItem(storageKey('fiado:paymentContacts'));
       if (rawContacts) {
         const parsed = JSON.parse(rawContacts);
-        setPaymentContactsState({
+        const contacts = {
           whatsapp_number: normalizePhone(parsed.whatsapp_number),
           nequi_number: normalizePhone(parsed.nequi_number),
           daviplata_number: normalizePhone(parsed.daviplata_number),
           payment_accounts: Array.isArray(parsed.payment_accounts) ? parsed.payment_accounts : [],
-        });
+        };
+        setPaymentContactsState(contacts);
+        
+        // Sincronización proactiva: si hay datos locales pero no en el perfil de Supabase, subirlos
+        if (profile && !profile.whatsapp_number && contacts.whatsapp_number) {
+          updateProfileFields(contacts, 'Información de contacto sincronizada');
+        }
       }
     } catch {}
     
@@ -183,13 +206,19 @@ export const useProfile = () => {
       const rawTemplates = localStorage.getItem(storageKey('fiado:messageTemplates'));
       if (rawTemplates) {
         const parsed = JSON.parse(rawTemplates);
-        setMessageTemplatesState({
+        const templates = {
           message_template_reminder: parsed.message_template_reminder || DEFAULT_TEMPLATES.message_template_reminder,
           message_template_receipt: parsed.message_template_receipt || DEFAULT_TEMPLATES.message_template_receipt,
-        });
+        };
+        setMessageTemplatesState(templates);
+        
+        // Sincronización proactiva: si hay plantillas locales pero no en Supabase, subirlas
+        if (profile && !profile.message_template_reminder && templates.message_template_reminder !== DEFAULT_TEMPLATES.message_template_reminder) {
+          updateProfileFields(templates, 'Plantillas sincronizadas');
+        }
       }
     } catch {}
-  }, [user?.id]);
+  }, [user?.id, !!profile]);
 
   // Aplicar tema al documento
   useEffect(() => {
@@ -240,6 +269,10 @@ export const useProfile = () => {
 
   const updateStoreName = async (storeName: string) => {
     await updateProfileFields({ store_name: storeName?.trim() || 'Mi Tienda' }, 'Nombre de tienda actualizado');
+  };
+
+  const updateDisplayName = async (displayName: string) => {
+    await updateProfileFields({ display_name: displayName?.trim() || null }, 'Nombre de responsable actualizado');
   };
 
   const uploadLogo = async (file: File): Promise<string | null> => {
@@ -313,7 +346,9 @@ export const useProfile = () => {
     };
     localStorage.setItem(storageKey('fiado:paymentContacts'), JSON.stringify(payload));
     setPaymentContactsState(payload);
-    toast({ title: 'Información de pagos guardada' });
+    
+    // Guardar también en la base de datos
+    await updateProfileFields(payload, 'Información de pagos guardada');
   };
 
   const updateMessageTemplates = async (templates: {
@@ -328,13 +363,16 @@ export const useProfile = () => {
     };
     localStorage.setItem(storageKey('fiado:messageTemplates'), JSON.stringify(payload));
     setMessageTemplatesState(payload);
-    toast({ title: 'Plantillas guardadas' });
+    
+    // Guardar también en la base de datos
+    await updateProfileFields(payload, 'Plantillas guardadas');
   };
 
   return {
     profile,
     loading,
     updateStoreName,
+    updateDisplayName,
     uploadLogo,
     updateTheme,
     updateBrandingColors,

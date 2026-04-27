@@ -84,10 +84,12 @@ const PREDEFINED_THEMES = [
 
 interface ProfileSettingsProps {
   currentStoreName: string;
+  currentDisplayName: string | null;
   currentLogoUrl: string | null;
   currentColors: BrandingColors;
   activeTheme: string;
   onSaveName: (storeName: string) => Promise<void>;
+  onSaveDisplayName: (displayName: string) => Promise<void>;
   onUploadLogo: (file: File) => Promise<string | null>;
   onSaveTheme: (themeId: string, colors: BrandingColors) => Promise<void>;
   onSaveColors: (colors: BrandingColors) => Promise<void>;
@@ -127,6 +129,7 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
 
 export default function ProfileSettings({
   currentStoreName = "Mi Tienda",
+  currentDisplayName = "",
   currentLogoUrl = null,
   currentColors = {
     primary_color: '#10B981',
@@ -136,6 +139,7 @@ export default function ProfileSettings({
   },
   activeTheme = 'light',
   onSaveName,
+  onSaveDisplayName,
   onUploadLogo,
   onSaveTheme,
   onSaveColors,
@@ -146,6 +150,7 @@ export default function ProfileSettings({
   onSaveMessageTemplates,
 }: Partial<ProfileSettingsProps> = {}) {
   const [storeName, setStoreName] = useState(currentStoreName);
+  const [displayName, setDisplayName] = useState(currentDisplayName || "");
   const [selectedTheme, setSelectedTheme] = useState(activeTheme);
   const [customColors, setCustomColors] = useState<BrandingColors>(currentColors);
   const [logoPreview, setLogoPreview] = useState<string | null>(currentLogoUrl);
@@ -179,15 +184,20 @@ export default function ProfileSettings({
   useEffect(() => {
     const hasChanges = 
       storeName !== currentStoreName ||
+      displayName !== (currentDisplayName || "") ||
       JSON.stringify(customColors) !== JSON.stringify(currentColors) ||
       selectedTheme !== activeTheme;
     setHasUnsavedChanges(hasChanges);
-  }, [storeName, customColors, selectedTheme, currentStoreName, currentColors, activeTheme]);
+  }, [storeName, displayName, customColors, selectedTheme, currentStoreName, currentDisplayName, currentColors, activeTheme]);
 
   // Actualizar estados cuando cambien las props
   useEffect(() => {
     setStoreName(currentStoreName);
   }, [currentStoreName]);
+
+  useEffect(() => {
+    setDisplayName(currentDisplayName || "");
+  }, [currentDisplayName]);
 
   useEffect(() => {
     setLogoPreview(currentLogoUrl);
@@ -252,12 +262,33 @@ export default function ProfileSettings({
     try {
       if (onSaveName) {
         await onSaveName(storeName.trim());
-        showToast('✓ Nombre guardado exitosamente');
+        showToast('✓ Nombre de tienda guardado');
         setHasUnsavedChanges(false);
       }
     } catch (error) {
-      showToast('Error al guardar el nombre', 'error');
-      console.error('Error saving name:', error);
+      showToast('Error al guardar el nombre de la tienda', 'error');
+      console.error('Error saving store name:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDisplayNameSubmit = async () => {
+    if (!displayName.trim()) {
+      showToast('El nombre del responsable no puede estar vacío', 'error');
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      if (onSaveDisplayName) {
+        await onSaveDisplayName(displayName.trim());
+        showToast('✓ Nombre de responsable guardado');
+        setHasUnsavedChanges(false);
+      }
+    } catch (error) {
+      showToast('Error al guardar el nombre del responsable', 'error');
+      console.error('Error saving display name:', error);
     } finally {
       setIsSaving(false);
     }
@@ -526,6 +557,56 @@ export default function ProfileSettings({
                     {isSaving ? 'Guardando...' : 'Guardar'}
                   </Button>
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="displayName" className="text-base font-semibold">
+                  Nombre del Responsable
+                </Label>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Tu nombre completo"
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleDisplayNameSubmit}
+                    disabled={isSaving || !displayName.trim()}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {isSaving ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Este nombre aparecerá en el panel administrativo.</p>
+              </div>
+
+              <div>
+                <Label htmlFor="whatsapp_tienda" className="text-base font-semibold">
+                  WhatsApp de la Tienda
+                </Label>
+                <div className="flex gap-2 mt-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">+57</span>
+                    <Input
+                      id="whatsapp_tienda"
+                      value={contacts.whatsapp_number}
+                      onChange={(e) => handlePhoneChange('whatsapp_number', e.target.value)}
+                      placeholder="3001234567"
+                      className="pl-12"
+                      maxLength={10}
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSavePaymentContacts}
+                    disabled={isSaving || !contacts.whatsapp_number || contacts.whatsapp_number.length < 10}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {isSaving ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Número para contacto y cobros por WhatsApp.</p>
               </div>
 
               <div>

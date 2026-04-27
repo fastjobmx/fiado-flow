@@ -37,23 +37,27 @@ export const useFiados = () => {
 
       if (transactionsError) throw transactionsError;
 
-      // Map to local types
-      const mappedCustomers: Customer[] = (customersData || []).map((c) => ({
+      // Map to local types - usando SOLO campos base seguros
+      const mappedCustomers: Customer[] = (customersData || []).map((c: any) => ({
         id: c.id,
         name: c.name,
-        phone: c.phone,
-        totalDebt: Number(c.total_debt),
+        phone: c.phone || '',
+        totalDebt: Number(c.total_debt) || 0,
         lastPaymentDate: c.last_payment_date ? new Date(c.last_payment_date) : null,
         createdAt: new Date(c.created_at),
+        updatedAt: c.updated_at ? new Date(c.updated_at) : undefined,
+        status: 'active',
       }));
 
-      const mappedTransactions: Transaction[] = (transactionsData || []).map((t) => ({
+      // Map to local types - usando SOLO campos base seguros
+      const mappedTransactions: Transaction[] = (transactionsData || []).map((t: any) => ({
         id: t.id,
         customerId: t.customer_id,
         type: t.type as 'debt' | 'payment',
-        amount: Number(t.amount),
+        amount: Number(t.amount) || 0,
         description: t.description || '',
         date: new Date(t.created_at),
+        status: 'completed',
       }));
 
       setCustomers(mappedCustomers);
@@ -74,158 +78,327 @@ export const useFiados = () => {
     fetchData();
   }, [fetchData]);
 
-  const addCustomer = async (name: string, phone: string) => {
-    if (!user) return null;
+  const addCustomer = async (
+    name: string, 
+    phone: string, 
+    nickname?: string, 
+    address?: string, 
+    notes?: string,
+    creditLimit?: number
+  ) => {
+    if (!user) {
+      console.error('[addCustomer] ERROR: No hay usuario autenticado');
+      return null;
+    }
+
+    // Validar name
+    if (!name || name.trim() === '') {
+      console.error('[addCustomer] ERROR: name es requerido');
+      return null;
+    }
+
+    console.log('[addCustomer] Iniciando creación de cliente:', {
+      name: name.trim(),
+      phone,
+      userId: user.id,
+    });
 
     try {
+      // Payload MÍNIMO para customers (solo columnas base seguras)
+      const payload: any = {
+        owner_id: user.id,
+        name: name.trim() || 'Cliente sin nombre',
+        phone: phone || null,
+        total_debt: 0,
+      };
+
+      console.log('[FIADO] payload customer', payload);
+
       const { data, error } = await supabase
         .from('customers')
-        .insert({
-          owner_id: user.id,
-          name,
-          phone,
-          total_debt: 0,
-        })
+        .insert(payload)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[addCustomer] Error de Supabase:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
+        throw error;
+      }
+
+      console.log('[addCustomer] Respuesta de Supabase:', data);
 
       const newCustomer: Customer = {
         id: data.id,
         name: data.name,
-        phone: data.phone,
+        phone: data.phone || '',
         totalDebt: 0,
         lastPaymentDate: null,
         createdAt: new Date(data.created_at),
+        updatedAt: data.updated_at ? new Date(data.updated_at) : undefined,
+        nickname: data.nickname,
+        address: data.address,
+        notes: data.notes,
+        creditLimit: data.credit_limit ? Number(data.credit_limit) : undefined,
+        status: 'active',
+        lastMovementAt: data.last_movement_at ? new Date(data.last_movement_at) : null,
       };
 
       setCustomers((prev) => [newCustomer, ...prev]);
-      return newCustomer;
-    } catch (error) {
-      console.error('Error adding customer:', error);
+
       toast({
-        title: 'Error',
-        description: 'No se pudo agregar el cliente',
+        title: 'Cliente creado',
+        description: `Se agregó a ${newCustomer.name}`,
+      });
+
+      return newCustomer;
+    } catch (error: any) {
+      console.error('[addCustomer] Error completo:', error);
+      const errorMessage = error?.message || error?.details || 'Error desconocido al crear el cliente';
+      toast({
+        title: 'Error al crear cliente',
+        description: errorMessage,
         variant: 'destructive',
       });
       return null;
     }
   };
 
-  const addDebt = async (customerId: string, amount: number, description: string) => {
-    if (!user) return;
+  const addDebt = async (customerId: string, amount: number, description: string, date: Date = new Date(), note?: string) => {
+    if (!user) {
+      console.error('[addDebt] ERROR: No hay usuario autenticado');
+      return null;
+    }
+
+    // Validar customer_id
+    if (!customerId) {
+      console.error('[addDebt] ERROR: customer_id es requerido');
+      return null;
+    }
+
+    // Validar amount
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      console.error('[addDebt] ERROR: amount debe ser un número positivo');
+      return null;
+    }
+
+    console.log('[addDebt] Iniciando registro de fiado:', {
+      customerId,
+      amount: numAmount,
+      description,
+      date: date.toISOString(),
+      note,
+      userId: user.id,
+    });
 
     try {
+      // Payload MÍNIMO para transactions (solo columnas base seguras)
+      const payload: any = {
+        owner_id: user.id,
+        customer_id: customerId,
+        type: 'debt',
+        amount: numAmount,
+        description: description || 'Fiado',
+      };
+
+      console.log('[FIADO] payload transaction', payload);
+
       // Insert transaction
       const { data: transactionData, error: transactionError } = await supabase
         .from('transactions')
-        .insert({
-          customer_id: customerId,
-          owner_id: user.id,
-          type: 'debt',
-          amount,
-          description,
-        })
+        .insert(payload)
         .select()
         .single();
 
-      if (transactionError) throw transactionError;
+      if (transactionError) {
+        console.error('[addDebt] Error de Supabase:', {
+          message: transactionError.message,
+          code: transactionError.code,
+          details: transactionError.details,
+          hint: transactionError.hint,
+        });
+        throw transactionError;
+      }
+
+      console.log('[addDebt] Respuesta de Supabase:', transactionData);
 
       // Update customer total_debt
       const customer = customers.find((c) => c.id === customerId);
-      if (!customer) return;
+      if (!customer) return null;
 
-      const newDebt = customer.totalDebt + amount;
+      if (customer.creditLimit && customer.totalDebt + numAmount > customer.creditLimit) {
+        toast({
+          title: 'Aviso de Límite',
+          description: `Este fiado supera el límite de ${new Intl.NumberFormat('es-CO').format(customer.creditLimit)}.`,
+          variant: 'destructive',
+        });
+      }
 
+      const newDebt = customer.totalDebt + numAmount;
+
+      const now = new Date().toISOString();
       const { error: updateError } = await supabase
         .from('customers')
-        .update({ total_debt: newDebt })
+        .update({ 
+          total_debt: newDebt,
+          updated_at: now,
+        })
         .eq('id', customerId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('[FIADO] Supabase error', updateError);
+        throw updateError;
+      }
 
       // Update local state
       const newTransaction: Transaction = {
         id: transactionData.id,
         customerId,
         type: 'debt',
-        amount,
-        description,
+        amount: numAmount,
+        description: description || 'Fiado',
         date: new Date(transactionData.created_at),
+        status: 'completed',
       };
 
       setTransactions((prev) => [newTransaction, ...prev]);
       setCustomers((prev) =>
-        prev.map((c) => (c.id === customerId ? { ...c, totalDebt: newDebt } : c))
+        prev.map((c) => (c.id === customerId ? { ...c, totalDebt: newDebt, lastMovementAt: date } : c))
       );
-    } catch (error) {
-      console.error('Error adding debt:', error);
+
       toast({
-        title: 'Error',
-        description: 'No se pudo agregar la deuda',
+        title: 'Fiado guardado',
+        description: `Se registró el fiado de ${new Intl.NumberFormat('es-CO').format(numAmount)}`,
+      });
+
+      return newTransaction;
+    } catch (error: any) {
+      console.error('[addDebt] Error completo:', error);
+      const errorMessage = error?.message || error?.details || 'Error desconocido al guardar el fiado';
+      toast({
+        title: 'Error al guardar fiado',
+        description: errorMessage,
         variant: 'destructive',
       });
+      return null;
     }
   };
 
-  const addPayment = async (customerId: string, amount: number, description: string) => {
-    if (!user) return null;
+  const addPayment = async (customerId: string, amount: number, description: string, date: Date = new Date(), paymentMethod?: string, note?: string) => {
+    if (!user) {
+      console.error('[addPayment] ERROR: No hay usuario autenticado');
+      return null;
+    }
+
+    // Validar customer_id
+    if (!customerId) {
+      console.error('[addPayment] ERROR: customer_id es requerido');
+      return null;
+    }
+
+    // Validar amount
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      console.error('[addPayment] ERROR: amount debe ser un número positivo');
+      return null;
+    }
+
+    console.log('[addPayment] Iniciando registro de abono:', {
+      customerId,
+      amount: numAmount,
+      description,
+      date: date.toISOString(),
+      paymentMethod,
+      note,
+      userId: user.id,
+    });
 
     try {
-      // Insert transaction
+      // Payload MÍNIMO para transactions (solo columnas base seguras)
+      const payload: any = {
+        owner_id: user.id,
+        customer_id: customerId,
+        type: 'payment',
+        amount: numAmount,
+        description: description || 'Abono',
+      };
+
+      console.log('[FIADO] payload transaction', payload);
+
+      // Insertar el abono
       const { data: transactionData, error: transactionError } = await supabase
         .from('transactions')
-        .insert({
-          customer_id: customerId,
-          owner_id: user.id,
-          type: 'payment',
-          amount,
-          description,
-        })
+        .insert(payload)
         .select()
         .single();
 
-      if (transactionError) throw transactionError;
+      if (transactionError) {
+        console.error('[addPayment] Error de Supabase:', {
+          message: transactionError.message,
+          code: transactionError.code,
+          details: transactionError.details,
+          hint: transactionError.hint,
+        });
+        throw transactionError;
+      }
 
-      // Update customer
+      console.log('[addPayment] Respuesta de Supabase:', transactionData);
+
+      // Actualizar el saldo del cliente
       const customer = customers.find((c) => c.id === customerId);
       if (!customer) return null;
 
-      const newDebt = Math.max(0, customer.totalDebt - amount);
-      const now = new Date();
+      const newDebt = Math.max(0, customer.totalDebt - numAmount);
 
+      const now = new Date().toISOString();
       const { error: updateError } = await supabase
         .from('customers')
         .update({
-          total_debt: newDebt,
-          last_payment_date: now.toISOString(),
+          total_debt: Math.max(newDebt, 0),
+          last_payment_date: now,
+          updated_at: now,
         })
         .eq('id', customerId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('[FIADO] Supabase error', updateError);
+        throw updateError;
+      }
 
       // Update local state
       const newTransaction: Transaction = {
         id: transactionData.id,
         customerId,
         type: 'payment',
-        amount,
-        description,
+        amount: numAmount,
+        description: description || 'Abono',
         date: new Date(transactionData.created_at),
+        status: 'completed',
       };
 
       setTransactions((prev) => [newTransaction, ...prev]);
       setCustomers((prev) =>
         prev.map((c) =>
-          c.id === customerId ? { ...c, totalDebt: newDebt, lastPaymentDate: now } : c
+          c.id === customerId ? { ...c, totalDebt: newDebt, lastMovementAt: date } : c
         )
       );
-    } catch (error) {
-      console.error('Error adding payment:', error);
+
       toast({
-        title: 'Error',
-        description: 'No se pudo registrar el pago',
+        title: 'Abono registrado',
+        description: `Se recibió un abono de ${new Intl.NumberFormat('es-CO').format(numAmount)}`,
+      });
+
+      return newTransaction;
+    } catch (error: any) {
+      console.error('[addPayment] Error completo:', error);
+      const errorMessage = error?.message || error?.details || 'Error desconocido al registrar el abono';
+      toast({
+        title: 'Error al registrar abono',
+        description: errorMessage,
         variant: 'destructive',
       });
       return null;
@@ -235,6 +408,30 @@ export const useFiados = () => {
   const getTotalDebt = () => {
     return customers.reduce((sum, c) => sum + c.totalDebt, 0);
   };
+
+  const getDailyStats = useCallback(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayTransactions = transactions.filter(t => {
+      const transDate = new Date(t.date);
+      transDate.setHours(0, 0, 0, 0);
+      return transDate.getTime() === today.getTime();
+    });
+
+    const newDebts = todayTransactions
+      .filter(t => t.type === 'debt')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const newPayments = todayTransactions
+      .filter(t => t.type === 'payment')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+      newDebts,
+      newPayments
+    };
+  }, [transactions]);
 
   const getOverdueCustomers = (days: number = 15) => {
     const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
@@ -256,48 +453,125 @@ export const useFiados = () => {
   const deleteCustomer = async (customerId: string) => {
     if (!user) return;
 
+    console.log('[FIADO] delete customer', { customerId });
+
     try {
       const { error } = await supabase
         .from('customers')
         .delete()
         .eq('id', customerId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[deleteCustomer] Error de Supabase:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        });
+        throw error;
+      }
 
       setCustomers((prev) => prev.filter((c) => c.id !== customerId));
       setTransactions((prev) => prev.filter((t) => t.customerId !== customerId));
-    } catch (error) {
+      
+      console.log('[FIADO] customer deleted', { customerId });
+    } catch (error: any) {
       console.error('Error deleting customer:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo eliminar el cliente',
+        description: error?.message || 'No se pudo eliminar el cliente',
         variant: 'destructive',
       });
     }
   };
 
-  const updateCustomer = async (customerId: string, name: string, phone: string) => {
+  const updateCustomer = async (customerId: string, name: string, phone: string, nickname?: string, address?: string, notes?: string) => {
     if (!user) return;
 
     try {
+      // Payload MÍNIMO para update (solo columnas base seguras)
+      const updateData: any = {
+        name: name || 'Cliente sin nombre',
+        phone: phone || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log('[FIADO] update customer payload', updateData);
+
       const { error } = await supabase
         .from('customers')
-        .update({ name, phone })
+        .update(updateData)
         .eq('id', customerId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[FIADO] Supabase error', error);
+        throw error;
+      }
 
       setCustomers((prev) =>
-        prev.map((c) => (c.id === customerId ? { ...c, name, phone } : c))
+        prev.map((c) => (c.id === customerId ? { 
+          ...c, 
+          name: updateData.name, 
+          phone: updateData.phone,
+          updatedAt: new Date(),
+        } : c))
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating customer:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo actualizar el cliente',
+        description: error?.message || 'No se pudo actualizar el cliente',
         variant: 'destructive',
       });
     }
+  };
+
+  // Importar múltiples clientes desde Excel
+  const importCustomers = async (customersToImport: { name: string; phone: string; total_debt?: number }[]) => {
+    if (!user) return { success: 0, errors: customersToImport.length };
+
+    let success = 0;
+    let errors = 0;
+
+    for (const customer of customersToImport) {
+      try {
+        const payload: any = {
+          owner_id: user.id,
+          name: customer.name.trim() || 'Cliente sin nombre',
+          phone: customer.phone || null,
+          total_debt: customer.total_debt || 0,
+        };
+
+        const { data, error } = await supabase
+          .from('customers')
+          .insert(payload)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('[importCustomers] Error insertando:', error);
+          errors++;
+        } else {
+          const newCustomer: Customer = {
+            id: data.id,
+            name: data.name,
+            phone: data.phone || '',
+            totalDebt: Number(data.total_debt) || 0,
+            lastPaymentDate: data.last_payment_date ? new Date(data.last_payment_date) : null,
+            createdAt: new Date(data.created_at),
+            updatedAt: data.updated_at ? new Date(data.updated_at) : undefined,
+            status: 'active',
+          };
+          
+          setCustomers((prev) => [newCustomer, ...prev]);
+          success++;
+        }
+      } catch (error) {
+        console.error('[importCustomers] Error:', error);
+        errors++;
+      }
+    }
+
+    return { success, errors };
   };
 
   return {
@@ -308,10 +582,12 @@ export const useFiados = () => {
     addDebt,
     addPayment,
     getTotalDebt,
+    getDailyStats,
     getOverdueCustomers,
     getCustomerTransactions,
     deleteCustomer,
     updateCustomer,
+    importCustomers,
     refetch: fetchData,
   };
 };

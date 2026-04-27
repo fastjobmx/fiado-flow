@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type AccountStatus = 'pending' | 'active' | 'inactive';
+export type AccountStatus = 'pending' | 'active' | 'inactive' | 'trial' | 'soon' | 'overdue' | 'suspended' | 'free' | 'cancelled' | 'exonerated';
+
+export type AppPlan = 'Gratis' | 'Tendero' | 'Pro' | 'Plus' | 'Personalizado';
 
 interface UserWithProfile {
   user_id: string;
@@ -11,18 +13,23 @@ interface UserWithProfile {
   store_name: string;
   account_status: AccountStatus;
   maintenance_monthly_price_cop: number;
+  plan: AppPlan;
   created_at: string;
   total_customers: number;
   total_debt: number;
+  last_login: string | null;
+  next_maintenance_due_at: string | null;
+  phone: string | null;
 }
 
 interface GlobalStats {
   totalUsers: number;
   activeUsers: number;
-  pendingUsers: number;
-  inactiveUsers: number;
-  totalDebtAllStores: number;
-  monthlyPaymentsReceived: number;
+  overdueUsers: number;
+  expectedMonthlyIncome: number;
+  collectedMonthlyIncome: number;
+  maintenanceBalance: number;
+  totalFiadoRegistered: number;
 }
 
 interface MaintenanceInvoice {
@@ -30,12 +37,22 @@ interface MaintenanceInvoice {
   user_id: string;
   period_ym: string;
   amount_cop: number;
-  status: 'open' | 'paid' | 'overdue' | 'inactive';
+  status: 'open' | 'paid' | 'overdue' | 'inactive' | 'exonerated';
   due_at: string;
   grace_until: string;
   paid_at: string | null;
   store_name?: string;
+  method?: string;
+  plan?: AppPlan;
 }
+
+const getPlanByPrice = (price: number): AppPlan => {
+  if (price === 0) return 'Gratis';
+  if (price === 14900) return 'Tendero';
+  if (price === 29900) return 'Pro';
+  if (price === 49900) return 'Plus';
+  return 'Personalizado';
+};
 
 export const useAdminData = () => {
   const [users, setUsers] = useState<UserWithProfile[]>([]);
@@ -43,10 +60,11 @@ export const useAdminData = () => {
   const [stats, setStats] = useState<GlobalStats>({
     totalUsers: 0,
     activeUsers: 0,
-    pendingUsers: 0,
-    inactiveUsers: 0,
-    totalDebtAllStores: 0,
-    monthlyPaymentsReceived: 0,
+    overdueUsers: 0,
+    expectedMonthlyIncome: 0,
+    collectedMonthlyIncome: 0,
+    maintenanceBalance: 0,
+    totalFiadoRegistered: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -98,48 +116,95 @@ export const useAdminData = () => {
         return acc;
       }, {} as Record<string, { count: number; debt: number }>);
 
-      // Build users list with real email data
-      const usersData: UserWithProfile[] = (profiles || []).map(p => ({
-        user_id: p.user_id,
-        email: emailMap[p.user_id] || 'Email no disponible',
-        display_name: p.display_name || null,
-        store_name: p.store_name,
-        account_status: p.account_status as AccountStatus,
-        maintenance_monthly_price_cop: Number(p.maintenance_monthly_price_cop),
-        created_at: p.created_at,
-        total_customers: customersByOwner?.[p.user_id]?.count || 0,
-        total_debt: customersByOwner?.[p.user_id]?.debt || 0,
-      }));
+        // Build users list with real email data
+        const usersData: UserWithProfile[] = (profiles || []).map(p => {
+          const price = Number(p.maintenance_monthly_price_cop);
+          const email = emailMap[p.user_id] || 'Email no disponible';
+          
+          // Debug log to see what data we're getting
+          console.log(`User ${p.user_id} profile data:`, {
+            display_name: p.display_name,
+            whatsapp: p.whatsapp_number,
+            store_name: p.store_name,
+            email: email
+          });
+
+          return {
+            user_id: p.user_id,
+            email: email,
+            // Fallback for display_name: use profile name, or email prefix
+            display_name: p.display_name || (email !== 'Email no disponible' ? email.split('@')[0] : null),
+            store_name: p.store_name,
+            account_status: p.account_status as AccountStatus,
+            maintenance_monthly_price_cop: price,
+            plan: getPlanByPrice(price),
+            created_at: p.created_at,
+            total_customers: customersByOwner?.[p.user_id]?.count || 0,
+            total_debt: customersByOwner?.[p.user_id]?.debt || 0,
+            last_login: p.updated_at, // Using updated_at as proxy for last access if not explicitly tracked
+            next_maintenance_due_at: p.next_maintenance_due_at,
+            phone: p.whatsapp_number,
+          };
+        });
 
       setUsers(usersData);
 
       // Calculate stats
-      const activeUsers = usersData.filter(u => u.account_status === 'active').length;
-      const pendingUsers = usersData.filter(u => u.account_status === 'pending').length;
-      const inactiveUsers = usersData.filter(u => u.account_status === 'inactive').length;
-      const totalDebt = usersData.reduce((sum, u) => sum + u.total_debt, 0);
-
-      // Calculate monthly payments
+      const totalFiado = usersData.reduce((sum, u) => sum + u.total_debt, 0);
+      
       const currentMonthInvoices = invoicesData?.filter(
-        i => i.period_ym === currentPeriod && i.status === 'paid'
+        i => i.period_ym === currentPeriod
       ) || [];
-      const monthlyPayments = currentMonthInvoices.reduce((sum, i) => sum + Number(i.amount_cop), 0);
+      
+      const collectedIncome = currentMonthInvoices
+        .filter(i => i.status === 'paid')
+        .reduce((sum, i) => sum + Number(i.amount_cop), 0);
+        
+      const maintenanceBalance = (invoicesData || [])
+        .filter(i => (i.status === 'overdue' || i.status === 'open') && Number(i.amount_cop) > 0)
+        .reduce((sum, i) => sum + Number(i.amount_cop), 0);
+
+      const activeUsersCount = usersData.filter(u => 
+        u.account_status === 'active' || u.account_status === 'trial' || u.account_status === 'exonerated'
+      ).length;
+
+      const overdueUsersCount = (invoicesData || []).filter(i => 
+        i.status === 'overdue' && Number(i.amount_cop) > 0
+      ).reduce((acc, inv) => {
+        if (!acc.includes(inv.user_id)) acc.push(inv.user_id);
+        return acc;
+      }, [] as string[]).length;
+
+      const expectedIncome = usersData
+        .filter(u => 
+          u.maintenance_monthly_price_cop > 0 && 
+          u.account_status !== 'suspended' && 
+          u.account_status !== 'inactive' && 
+          u.account_status !== 'cancelled'
+        )
+        .reduce((sum, u) => sum + u.maintenance_monthly_price_cop, 0);
 
       setStats({
         totalUsers: usersData.length,
-        activeUsers,
-        pendingUsers,
-        inactiveUsers,
-        totalDebtAllStores: totalDebt,
-        monthlyPaymentsReceived: monthlyPayments,
+        activeUsers: activeUsersCount,
+        overdueUsers: overdueUsersCount,
+        expectedMonthlyIncome: expectedIncome,
+        collectedMonthlyIncome: collectedIncome,
+        maintenanceBalance: maintenanceBalance,
+        totalFiadoRegistered: totalFiado,
       });
 
-      // Add store names to invoices
-      const invoicesWithNames = (invoicesData || []).map(inv => ({
-        ...inv,
-        status: inv.status as 'open' | 'paid' | 'overdue' | 'inactive',
-        store_name: profiles?.find(p => p.user_id === inv.user_id)?.store_name || 'Desconocido',
-      }));
+      // Add store names and plans to invoices
+      const invoicesWithNames = (invoicesData || []).map(inv => {
+        const user = usersData.find(u => u.user_id === inv.user_id);
+        return {
+          ...inv,
+          status: inv.status as any,
+          store_name: user?.store_name || 'Tienda por registrar',
+          plan: user?.plan || 'Gratis',
+          method: inv.paid_at ? 'Transferencia' : undefined, // Placeholder for method
+        };
+      });
       setInvoices(invoicesWithNames);
 
     } catch (error) {
@@ -156,38 +221,38 @@ export const useAdminData = () => {
 
   const updateAccountStatus = async (userId: string, newStatus: AccountStatus) => {
     try {
+      // Map extended statuses to DB supported statuses
+      let dbStatus: 'active' | 'inactive' | 'pending' = 'active';
+      if (newStatus === 'inactive' || newStatus === 'suspended' || newStatus === 'cancelled') {
+        dbStatus = 'inactive';
+      } else if (newStatus === 'pending') {
+        dbStatus = 'pending';
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({ account_status: newStatus })
+        .update({ account_status: dbStatus })
         .eq('user_id', userId);
 
       if (error) throw error;
 
+      // Update local state
       setUsers(prev => prev.map(u => 
         u.user_id === userId ? { ...u, account_status: newStatus } : u
       ));
 
-      // Update stats
-      setStats(prev => {
-        const oldUser = users.find(u => u.user_id === userId);
-        if (!oldUser) return prev;
+      // Refresh data to keep everything in sync (stats, etc)
+      await fetchData();
 
-        const newStats = { ...prev };
-        
-        // Decrement old status
-        if (oldUser.account_status === 'active') newStats.activeUsers--;
-        else if (oldUser.account_status === 'pending') newStats.pendingUsers--;
-        else if (oldUser.account_status === 'inactive') newStats.inactiveUsers--;
+      const statusLabels: Record<string, string> = {
+        active: 'activado',
+        inactive: 'desactivado',
+        suspended: 'suspendido',
+        pending: 'puesto en espera',
+        cancelled: 'cancelado'
+      };
 
-        // Increment new status
-        if (newStatus === 'active') newStats.activeUsers++;
-        else if (newStatus === 'pending') newStats.pendingUsers++;
-        else if (newStatus === 'inactive') newStats.inactiveUsers++;
-
-        return newStats;
-      });
-
-      toast.success(`Usuario ${newStatus === 'active' ? 'activado' : newStatus === 'inactive' ? 'desactivado' : 'puesto en espera'}`);
+      toast.success(`Usuario ${statusLabels[newStatus] || 'actualizado'}`);
     } catch (error) {
       console.error('Error updating account status:', error);
       toast.error('Error al actualizar estado');
@@ -255,6 +320,30 @@ export const useAdminData = () => {
     }
   };
 
+  const deleteUser = async (userId: string) => {
+    if (!confirm('¿Estás seguro de eliminar esta tienda? Esta acción no se puede deshacer y se borrarán todos sus datos.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      setUsers(prev => prev.filter(u => u.user_id !== userId));
+      setInvoices(prev => prev.filter(i => i.user_id !== userId));
+      
+      toast.success('Tienda eliminada permanentemente');
+      await fetchData();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Error al eliminar la tienda');
+    }
+  };
+
   return {
     users,
     invoices,
@@ -263,6 +352,7 @@ export const useAdminData = () => {
     updateAccountStatus,
     registerPayment,
     updateMaintenancePrice,
+    deleteUser,
     refetch: fetchData,
   };
 };

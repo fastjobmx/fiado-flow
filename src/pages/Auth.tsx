@@ -17,7 +17,7 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithMagicLink } = useAuth();
 
   if (loading) {
     return (
@@ -94,10 +94,49 @@ const Auth = () => {
     try {
       const { error } = await signInWithGoogle();
       if (error) {
+        console.error('[Auth] Error en handleGoogleSignIn:', error);
+        toast({
+          title: 'Error al iniciar con Google',
+          description: error.message || 'Verifica la configuración de autenticación en Supabase',
+          variant: 'destructive',
+        });
+      }
+      // Si no hay error, el redirect de Google se maneja automáticamente
+    } catch (err) {
+      console.error('[Auth] Excepción en handleGoogleSignIn:', err);
+      toast({
+        title: 'Error inesperado',
+        description: 'No se pudo conectar con Google. Intenta de nuevo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMagicLink = async () => {
+    if (!email) {
+      toast({
+        title: 'Correo requerido',
+        description: 'Por favor ingresa tu correo electrónico para enviarte el enlace.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await signInWithMagicLink(email);
+      if (error) {
         toast({
           title: 'Error',
           description: error.message,
           variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Enlace enviado',
+          description: 'Revisa tu bandeja de entrada para iniciar sesión.',
         });
       }
     } finally {
@@ -209,10 +248,24 @@ const Auth = () => {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            </Button>
+
+            {isLogin && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full text-xs"
+                onClick={handleMagicLink}
+                disabled={isSubmitting}
+              >
+                O iniciar sesión con un enlace mágico (email)
+              </Button>
+            )}
+          </div>
         </form>
 
         {/* Toggle */}

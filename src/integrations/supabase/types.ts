@@ -16,32 +16,50 @@ export type Database = {
     Tables: {
       customers: {
         Row: {
+          address: string | null
           created_at: string
+          credit_limit: number | null
           id: string
+          last_movement_at: string | null
           last_payment_date: string | null
           name: string
+          nickname: string | null
+          notes: string | null
           owner_id: string
           phone: string
+          status: string | null
           total_debt: number
           updated_at: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
+          credit_limit?: number | null
           id?: string
+          last_movement_at?: string | null
           last_payment_date?: string | null
           name: string
+          nickname?: string | null
+          notes?: string | null
           owner_id: string
           phone: string
+          status?: string | null
           total_debt?: number
           updated_at?: string
         }
         Update: {
+          address?: string | null
           created_at?: string
+          credit_limit?: number | null
           id?: string
+          last_movement_at?: string | null
           last_payment_date?: string | null
           name?: string
+          nickname?: string | null
+          notes?: string | null
           owner_id?: string
           phone?: string
+          status?: string | null
           total_debt?: number
           updated_at?: string
         }
@@ -97,7 +115,11 @@ export type Database = {
           last_maintenance_paid_at: string | null
           logo_url: string | null
           maintenance_monthly_price_cop: number
+          message_template_receipt: string | null
+          message_template_reminder: string | null
+          nequi_number: string | null
           next_maintenance_due_at: string | null
+          payment_accounts: Json | null
           primary_color: string | null
           secondary_color: string | null
           status: string | null
@@ -105,6 +127,8 @@ export type Database = {
           text_color: string | null
           updated_at: string
           user_id: string
+          whatsapp_number: string | null
+          daviplata_number: string | null
         }
         Insert: {
           account_status?: Database["public"]["Enums"]["account_status"]
@@ -116,7 +140,11 @@ export type Database = {
           last_maintenance_paid_at?: string | null
           logo_url?: string | null
           maintenance_monthly_price_cop?: number
+          message_template_receipt?: string | null
+          message_template_reminder?: string | null
+          nequi_number?: string | null
           next_maintenance_due_at?: string | null
+          payment_accounts?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
           status?: string | null
@@ -124,6 +152,8 @@ export type Database = {
           text_color?: string | null
           updated_at?: string
           user_id: string
+          whatsapp_number?: string | null
+          daviplata_number?: string | null
         }
         Update: {
           account_status?: Database["public"]["Enums"]["account_status"]
@@ -135,7 +165,11 @@ export type Database = {
           last_maintenance_paid_at?: string | null
           logo_url?: string | null
           maintenance_monthly_price_cop?: number
+          message_template_receipt?: string | null
+          message_template_reminder?: string | null
+          nequi_number?: string | null
           next_maintenance_due_at?: string | null
+          payment_accounts?: Json | null
           primary_color?: string | null
           secondary_color?: string | null
           status?: string | null
@@ -143,6 +177,8 @@ export type Database = {
           text_color?: string | null
           updated_at?: string
           user_id?: string
+          whatsapp_number?: string | null
+          daviplata_number?: string | null
         }
         Relationships: []
       }
@@ -151,27 +187,48 @@ export type Database = {
           amount: number
           created_at: string
           customer_id: string
+          date: string | null
           description: string | null
           id: string
+          original_amount: number | null
           owner_id: string
+          parent_transaction_id: string | null
+          payment_method: string | null
+          payment_note: string | null
+          pending_balance: number | null
+          status: string | null
           type: Database["public"]["Enums"]["transaction_type"]
         }
         Insert: {
           amount: number
           created_at?: string
           customer_id: string
+          date?: string | null
           description?: string | null
           id?: string
+          original_amount?: number | null
           owner_id: string
+          parent_transaction_id?: string | null
+          payment_method?: string | null
+          payment_note?: string | null
+          pending_balance?: number | null
+          status?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
         }
         Update: {
           amount?: number
           created_at?: string
           customer_id?: string
+          date?: string | null
           description?: string | null
           id?: string
+          original_amount?: number | null
           owner_id?: string
+          parent_transaction_id?: string | null
+          payment_method?: string | null
+          payment_note?: string | null
+          pending_balance?: number | null
+          status?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
         }
         Relationships: [
