@@ -262,6 +262,50 @@ export type Database = {
         }
         Relationships: []
       }
+      new_user_registrations: {
+        Row: {
+          city: string | null
+          country: string | null
+          email: string | null
+          id: string
+          ip_address: string | null
+          notification_sent: boolean | null
+          registered_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          email?: string | null
+          id?: string
+          ip_address?: string | null
+          notification_sent?: boolean | null
+          registered_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          email?: string | null
+          id?: string
+          ip_address?: string | null
+          notification_sent?: boolean | null
+          registered_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_user_registrations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -280,6 +324,14 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       run_maintenance_billing: { Args: { now_ts?: string }; Returns: undefined }
+      update_registration_ip: {
+        Args: {
+          p_ip_address: string
+          p_country?: string
+          p_city?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       account_status: "pending" | "active" | "inactive"
