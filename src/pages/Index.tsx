@@ -15,6 +15,8 @@ import { AddCustomerForm } from '@/components/AddCustomerForm';
 import { PaymentsSummary } from '@/components/PaymentsSummary';
 import { TransactionForm } from '@/components/TransactionForm';
 import { ExcelManager } from '@/components/ExcelManager';
+import { FloatingActions } from '@/components/FloatingActions';
+import { WelcomeTooltip } from '@/components/WelcomeTooltip';
 import ProfileSettings from '@/components/ProfileSettings';
 import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { Button } from '@/components/ui/button';
@@ -169,7 +171,7 @@ const Index = () => {
           dueDate={currentInvoice.due_at}
           graceUntil={currentInvoice.grace_until}
           isSuspended={isSuspended}
-          planType={profile?.plan_type as 'free' | 'trial' | 'pro'}
+          planType={(profile as any)?.plan_type || 'trial'}
         />
       )}
 
@@ -187,7 +189,7 @@ const Index = () => {
             customers={customers}
             transactions={transactions}
             selectedCustomer={selectedCustomer}
-            onImportCustomers={importCustomers}
+            onImportCustomers={async (customers) => { await importCustomers(customers); }}
             className="flex-shrink-0"
           />
         </div>
@@ -286,6 +288,16 @@ const Index = () => {
         />
       )}
 
+      {/* Floating Action Button para acceso rápido */}
+      {!selectedCustomer && (
+        <FloatingActions
+          onAddCustomer={() => setShowAddCustomer(true)}
+          onAddDebt={() => setShowQuickTransaction({ type: 'debt' })}
+          canAddCustomer={canCreateCustomer(userStatus)}
+          canAddDebt={canCreateDebt(userStatus)}
+        />
+      )}
+
       {/* Reservar espacio para que el contenido no quede debajo de la barra */}
       <div className="h-20" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
 
@@ -327,6 +339,9 @@ const Index = () => {
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      {/* Tooltips de bienvenida */}
+      {!selectedCustomer && <WelcomeTooltip />}
     </div>
   );
 };
