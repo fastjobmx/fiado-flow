@@ -348,17 +348,26 @@ export const useFiados = () => {
 
       console.log('[addPayment] Respuesta de Supabase:', transactionData);
 
-      // Actualizar el saldo del cliente
-      const customer = customers.find((c) => c.id === customerId);
-      if (!customer) return null;
+      // RECARGAR datos actualizados del cliente desde Supabase para evitar desincronización
+      const { data: updatedCustomer, error: reloadError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', customerId)
+        .single();
 
-      const newDebt = Math.max(0, customer.totalDebt - numAmount);
+      if (reloadError) {
+        console.error('[addPayment] Error al recargar cliente:', reloadError);
+      }
+
+      // Calcular nueva deuda basada en datos frescos o fallback al cálculo local
+      const currentDebt = updatedCustomer?.total_debt ?? customers.find((c) => c.id === customerId)?.totalDebt ?? 0;
+      const newDebt = Math.max(0, Number(currentDebt) - numAmount);
 
       const now = new Date().toISOString();
       const { error: updateError } = await supabase
         .from('customers')
         .update({
-          total_debt: Math.max(newDebt, 0),
+          total_debt: newDebt,
           last_payment_date: now,
           updated_at: now,
         })
@@ -369,7 +378,9 @@ export const useFiados = () => {
         throw updateError;
       }
 
-      // Update local state
+      console.log('[addPayment] Deuda actualizada:', { oldDebt: currentDebt, newDebt, amount: numAmount });
+
+      // Update local state con datos verificados
       const newTransaction: Transaction = {
         id: transactionData.id,
         customerId,
@@ -383,7 +394,9 @@ export const useFiados = () => {
       setTransactions((prev) => [newTransaction, ...prev]);
       setCustomers((prev) =>
         prev.map((c) =>
-          c.id === customerId ? { ...c, totalDebt: newDebt, lastMovementAt: date } : c
+          c.id === customerId 
+            ? { ...c, totalDebt: newDebt, lastPaymentDate: new Date(now), lastMovementAt: date } 
+            : c
         )
       );
 
@@ -574,6 +587,68 @@ export const useFiados = () => {
     return { success, errors };
   };
 
+  // Pagar la deuda total de un cliente (saldar cuenta)
+  const payFullAmount = async (customerId: string, date: Date = new Date(), paymentMethod?: string, note?: string) => {
+    if (!user) {
+      console.error('[payFullAmount] ERROR: No hay usuario autenticado');
+      return null;
+    }
+
+    const customer = customers.find((c) => c.id === customerId);
+    if (!customer) {
+      toast({
+        title: 'Error',
+        description: 'Cliente no encontrado',
+        variant: 'destructive',
+      });
+      return null;
+    }
+
+    const totalDebt = customer.totalDebt;
+    if (totalDebt <= 0) {
+      toast({
+        title: 'Cliente al día',
+        description: 'Este cliente no tiene deuda pendiente',
+      });
+      return null;
+    }
+
+    console.log('[payFullAmount] Saldando deuda total:', {
+      customerId,
+      customerName: customer.name,
+      totalDebt,
+    });
+
+    try {
+      // Usar addPayment con el monto total
+      const result = await addPayment(
+        customerId,
+        totalDebt,
+        'Pago total - Saldado de cuenta',
+        date,
+        paymentMethod,
+        note || `Pago completo de ${new Intl.NumberFormat('es-CO').format(totalDebt)}`
+      );
+
+      if (result) {
+        toast({
+          title: '¡Cuenta saldada!',
+          description: `${customer.name} ha pagado su deuda completa de ${new Intl.NumberFormat('es-CO').format(totalDebt)}`,
+        });
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error('[payFullAmount] Error:', error);
+      toast({
+        title: 'Error al saldar cuenta',
+        description: error?.message || 'No se pudo procesar el pago total',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
   return {
     customers,
     transactions,
@@ -581,6 +656,7 @@ export const useFiados = () => {
     addCustomer,
     addDebt,
     addPayment,
+    payFullAmount,
     getTotalDebt,
     getDailyStats,
     getOverdueCustomers,

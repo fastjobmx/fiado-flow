@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
+import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
@@ -22,15 +23,23 @@ const App = () => (
         <Sonner />
         <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <Routes>
+            {/* Landing page - Pública */}
+            <Route path="/" element={<Landing />} />
+            
+            {/* Auth - Login/Registro */}
             <Route path="/auth" element={<Auth />} />
+            
+            {/* App Dashboard - Protegido */}
             <Route
-              path="/"
+              path="/app"
               element={
                 <ProtectedRoute>
                   <Index />
                 </ProtectedRoute>
               }
             />
+            
+            {/* Admin Panel - Protegido Admin */}
             <Route
               path="/admin"
               element={
@@ -39,7 +48,8 @@ const App = () => (
                 </AdminProtectedRoute>
               }
             />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            
+            {/* Catch-all para 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

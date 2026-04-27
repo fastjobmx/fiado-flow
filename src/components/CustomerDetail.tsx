@@ -28,6 +28,7 @@ interface CustomerDetailProps {
   onBack: () => void;
   onAddDebt: (amount: number, description: string, date: Date, note?: string) => void;
   onAddPayment: (amount: number, description: string, date: Date, method?: string, note?: string) => Promise<Transaction | null>;
+  onPayFullAmount?: (date: Date, method?: string, note?: string) => Promise<Transaction | null>;
   onEdit: (data: Partial<Customer>) => void;
   onDelete: () => void;
   userStatus?: string;
@@ -39,6 +40,7 @@ export const CustomerDetail = ({
   onBack,
   onAddDebt,
   onAddPayment,
+  onPayFullAmount,
   onEdit,
   onDelete,
   userStatus = 'paid',
@@ -232,6 +234,25 @@ export const CustomerDetail = ({
         {/* Acciones de Cobro Rápidas */}
         {customer.totalDebt > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+            {/* Botón Pagar Total - Destacado */}
+            {onPayFullAmount && (
+              <Button
+                onClick={async () => {
+                  const confirmed = window.confirm(
+                    `¿Confirmar pago TOTAL de ${formatCOP(customer.totalDebt)}?\n\nEsto saldará la cuenta de ${customer.name} completamente.`
+                  );
+                  if (confirmed) {
+                    await onPayFullAmount(new Date());
+                  }
+                }}
+                disabled={!canSendCollection(userStatus)}
+                className="h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black gap-3 transition-all active:scale-95 col-span-full shadow-lg shadow-emerald-500/25"
+              >
+                <Check className="w-5 h-5" />
+                Pagar Total: {formatCOP(customer.totalDebt)}
+              </Button>
+            )}
+            
             {customer.phone && customer.phone.trim() !== "" && (
               <Button
                 onClick={sendWhatsAppReminder}

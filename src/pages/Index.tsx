@@ -36,6 +36,7 @@ const Index = () => {
     addCustomer,
     addDebt,
     addPayment,
+    payFullAmount,
     getTotalDebt,
     getOverdueCustomers,
     getCustomerTransactions,
@@ -94,6 +95,7 @@ const Index = () => {
           onBack={() => setSelectedCustomer(null)}
           onAddDebt={(amount, desc, date, note) => addDebt(currentCustomer.id, amount, desc, date, note)}
           onAddPayment={(amount, desc, date, method, note) => addPayment(currentCustomer.id, amount, desc, date, method, note)}
+          onPayFullAmount={(date, method, note) => payFullAmount(currentCustomer.id, date, method, note)}
           onEdit={(data) => updateCustomer(currentCustomer.id, data.name || '', data.phone || '', data.nickname, data.address, data.notes)}
           onDelete={() => {
             deleteCustomer(currentCustomer.id);
