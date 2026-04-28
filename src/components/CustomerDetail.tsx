@@ -2,7 +2,8 @@ import { ArrowLeft, Phone, MessageCircle, Plus, Minus, Pencil, Trash2, ChevronRi
 import { useState, useMemo } from 'react';
 import { Customer, Transaction } from '@/types/fiado';
 import { Button } from '@/components/ui/button';
-import { QuickTransaction } from './QuickTransaction';
+import { QuickDebtForm } from './QuickDebtForm';
+import { QuickPaymentForm } from './QuickPaymentForm';
 import { EditCustomerForm } from './EditCustomerForm';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { useProfile } from '@/hooks/useProfile';
@@ -532,22 +533,28 @@ export const CustomerDetail = ({
       </div>
 
       {/* Modales */}
-      {showTransactionForm && (
-        <QuickTransaction
-          type={showTransactionForm.type}
+      {showTransactionForm?.type === 'debt' && (
+        <QuickDebtForm
           customers={[]}
           selectedCustomer={customer}
-          onSubmit={async (amount, desc, customerId) => {
-            if (showTransactionForm.type === 'debt') {
-              onAddDebt(amount, desc, new Date());
-              setShowTransactionForm(null);
-              return null;
-            } else {
-              const tx = await onAddPayment(amount, desc, new Date());
-              setShowTransactionForm(null);
-              if (tx) setInvoiceTx(tx);
-              return tx;
-            }
+          onSubmit={async (customerId, amount, description, date) => {
+            onAddDebt(amount, description, date);
+            setShowTransactionForm(null);
+            return null;
+          }}
+          onCancel={() => setShowTransactionForm(null)}
+        />
+      )}
+      
+      {showTransactionForm?.type === 'payment' && (
+        <QuickPaymentForm
+          customers={[]}
+          selectedCustomer={customer}
+          onSubmit={async (customerId, amount, description, date) => {
+            const tx = await onAddPayment(amount, description, date);
+            setShowTransactionForm(null);
+            if (tx) setInvoiceTx(tx);
+            return tx;
           }}
           onCancel={() => setShowTransactionForm(null)}
         />

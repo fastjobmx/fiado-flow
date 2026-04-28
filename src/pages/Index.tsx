@@ -13,7 +13,8 @@ import { CustomerList } from '@/components/CustomerList';
 import { CustomerDetail } from '@/components/CustomerDetail';
 import { AddCustomerForm } from '@/components/AddCustomerForm';
 import { PaymentsSummary } from '@/components/PaymentsSummary';
-import { QuickTransaction } from '@/components/QuickTransaction';
+import { QuickDebtForm } from '@/components/QuickDebtForm';
+import { QuickPaymentForm } from '@/components/QuickPaymentForm';
 import { SimpleReports } from '@/components/SimpleReports';
 import { ExcelManager } from '@/components/ExcelManager';
 import { FloatingActions } from '@/components/FloatingActions';
@@ -232,20 +233,23 @@ const Index = () => {
         onShowSettings={() => setShowSettings(true)}
       />
 
-      {/* Modales Rápidos */}
-      {showQuickTransaction && (
-        <QuickTransaction
-          type={showQuickTransaction.type}
+      {/* Formulario Registrar Fiado */}
+      {showQuickTransaction?.type === 'debt' && (
+        <QuickDebtForm
           customers={customers}
-          onSubmit={async (amount, desc, customerId) => {
-            if (showQuickTransaction.type === 'debt') {
-              return await addDebt(customerId, amount, desc, new Date());
-            } else {
-              return await addPayment(customerId, amount, desc, new Date());
-            }
+          onSubmit={async (customerId, amount, description, date, promisedDate) => {
+            return await addDebt(customerId, amount, description, date);
           }}
-          onAddCustomer={async (name, phone) => {
-            return await addCustomer(name, phone || '');
+          onCancel={() => setShowQuickTransaction(null)}
+        />
+      )}
+
+      {/* Formulario Registrar Abono */}
+      {showQuickTransaction?.type === 'payment' && (
+        <QuickPaymentForm
+          customers={customers}
+          onSubmit={async (customerId, amount, description, date) => {
+            return await addPayment(customerId, amount, description, date);
           }}
           onCancel={() => setShowQuickTransaction(null)}
         />
