@@ -7,13 +7,13 @@ import { useProfile } from '@/hooks/useProfile';
 import { useAccountStatus } from '@/hooks/useAccountStatus';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Customer } from '@/types/fiado';
-import { DashboardHeader } from '@/components/DashboardHeader';
+import { Dashboard } from '@/components/Dashboard';
 import { OverdueAlerts } from '@/components/OverdueAlerts';
 import { CustomerList } from '@/components/CustomerList';
 import { CustomerDetail } from '@/components/CustomerDetail';
 import { AddCustomerForm } from '@/components/AddCustomerForm';
 import { PaymentsSummary } from '@/components/PaymentsSummary';
-import { TransactionForm } from '@/components/TransactionForm';
+import { QuickTransaction } from '@/components/QuickTransaction';
 import { ExcelManager } from '@/components/ExcelManager';
 import { FloatingActions } from '@/components/FloatingActions';
 import { WelcomeTooltip } from '@/components/WelcomeTooltip';
@@ -177,66 +177,17 @@ const Index = () => {
         />
       )}
 
-      {/* Dashboard Card */}
+      {/* Dashboard Principal */}
       <div className="mb-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <DashboardHeader
-              totalDebt={getTotalDebt()}
-              customerCount={customersWithDebt.length}
-              dailyStats={dailyStats}
-            />
-          </div>
-          <ExcelManager
-            customers={customers}
-            transactions={transactions}
-            selectedCustomer={selectedCustomer}
-            onImportCustomers={async (customers) => { await importCustomers(customers); }}
-            className="flex-shrink-0"
-          />
-        </div>
-      </div>
-
-      {/* Accesos Rápidos */}
-      <div className="grid grid-cols-2 gap-3 mb-8">
-        <Button 
-          onClick={() => setShowQuickTransaction({ type: 'debt' })}
-          disabled={!canCreateDebt(userStatus)}
-          className="h-24 rounded-3xl flex flex-col gap-2 bg-primary hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 border-0"
-        >
-          <div className="p-2 bg-white/20 rounded-xl">
-            <Plus className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-black text-xs uppercase tracking-tight">Registrar fiado</span>
-        </Button>
-        <Button 
-          onClick={() => setShowQuickTransaction({ type: 'payment' })}
-          className="h-24 rounded-3xl flex flex-col gap-2 bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50 transition-all shadow-sm border"
-        >
-          <div className="p-2 bg-green-50 rounded-xl">
-            <CreditCard className="w-5 h-5 text-green-600" />
-          </div>
-          <span className="font-black text-xs uppercase tracking-tight">Registrar abono</span>
-        </Button>
-        <Button 
-          onClick={() => handleQuickAction('alerts-section')}
-          className="h-24 rounded-3xl flex flex-col gap-2 bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50 transition-all shadow-sm border"
-        >
-          <div className="p-2 bg-red-50 rounded-xl">
-            <Clock className="w-5 h-5 text-red-600" />
-          </div>
-          <span className="font-black text-xs uppercase tracking-tight">Cobrar morosos</span>
-        </Button>
-        <Button 
-          onClick={() => setShowAddCustomer(true)}
-          disabled={!canCreateCustomer(userStatus)}
-          className="h-24 rounded-3xl flex flex-col gap-2 bg-zinc-900 hover:bg-zinc-800 transition-all shadow-sm"
-        >
-          <div className="p-2 bg-white/10 rounded-xl">
-            <UserPlus className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-black text-xs uppercase tracking-tight">Nuevo cliente</span>
-        </Button>
+        <Dashboard
+          totalDebt={getTotalDebt()}
+          customersWithDebt={customersWithDebt}
+          todayPayments={dailyStats?.newPayments || 0}
+          todayDebts={dailyStats?.newDebts || 0}
+          overdueCustomers={getOverdueCustomers(7)}
+          onViewCustomers={() => document.getElementById('clientes-section')?.scrollIntoView({ behavior: 'smooth' })}
+          onViewCustomer={setSelectedCustomer}
+        />
       </div>
 
       {/* AI Alerts */}
@@ -248,8 +199,8 @@ const Index = () => {
         />
       </div>
 
-      {/* Customer List */}
-      <div id="customer-list-section">
+      {/* Lista de Clientes */}
+      <div id="clientes-section" className="mt-8">
         <CustomerList
           customers={customers}
           onCustomerClick={setSelectedCustomer}
@@ -265,22 +216,21 @@ const Index = () => {
           setSelectedCustomer(null);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
-        onShowCustomers={() => handleQuickAction('customer-list-section')}
+        onShowCustomers={() => handleQuickAction('clientes-section')}
         onShowCollection={() => handleQuickAction('alerts-section')}
         onShowSettings={() => setShowSettings(true)}
       />
 
       {/* Modales Rápidos */}
       {showQuickTransaction && (
-        <TransactionForm
+        <QuickTransaction
           type={showQuickTransaction.type}
           customers={customers}
-          userStatus={userStatus}
-          onSubmit={async (amount, desc, date, customerId, note, method) => {
+          onSubmit={async (amount, desc, customerId) => {
             if (showQuickTransaction.type === 'debt') {
-              return await addDebt(customerId, amount, desc, date, note);
+              return await addDebt(customerId, amount, desc, new Date());
             } else {
-              return await addPayment(customerId, amount, desc, date, method, note);
+              return await addPayment(customerId, amount, desc, new Date());
             }
           }}
           onAddCustomer={async (name, phone) => {

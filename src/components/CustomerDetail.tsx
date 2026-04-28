@@ -2,7 +2,7 @@ import { ArrowLeft, Phone, MessageCircle, Plus, Minus, Pencil, Trash2, ChevronRi
 import { useState, useMemo } from 'react';
 import { Customer, Transaction } from '@/types/fiado';
 import { Button } from '@/components/ui/button';
-import { TransactionForm } from './TransactionForm';
+import { QuickTransaction } from './QuickTransaction';
 import { EditCustomerForm } from './EditCustomerForm';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { useProfile } from '@/hooks/useProfile';
@@ -533,24 +533,22 @@ export const CustomerDetail = ({
 
       {/* Modales */}
       {showTransactionForm && (
-        <TransactionForm
+        <QuickTransaction
           type={showTransactionForm.type}
           customers={[]}
           selectedCustomer={customer}
-          userStatus={userStatus}
-          onSubmit={async (amount, desc, date, customerId, note, method) => {
+          onSubmit={async (amount, desc, customerId) => {
             if (showTransactionForm.type === 'debt') {
-              onAddDebt(amount, desc, date, note);
+              onAddDebt(amount, desc, new Date());
               setShowTransactionForm(null);
-              return null; // Local update is handled by onAddDebt
+              return null;
             } else {
-              const tx = await onAddPayment(amount, desc, date, method, note);
+              const tx = await onAddPayment(amount, desc, new Date());
               setShowTransactionForm(null);
               if (tx) setInvoiceTx(tx);
               return tx;
             }
           }}
-          onAddCustomer={async () => null}
           onCancel={() => setShowTransactionForm(null)}
         />
       )}
