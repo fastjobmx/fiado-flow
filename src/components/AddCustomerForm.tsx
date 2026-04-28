@@ -1,14 +1,23 @@
 import { useState } from 'react';
-import { UserPlus, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { UserPlus, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 interface AddCustomerFormProps {
   onSubmit: (name: string, phone: string, nickname?: string, address?: string, notes?: string, creditLimit?: number) => void;
   onCancel: () => void;
+  canAddCustomer?: boolean;
+  limitMessage?: string | null;
+  onUpgrade?: () => void;
 }
 
-export const AddCustomerForm = ({ onSubmit, onCancel }: AddCustomerFormProps) => {
+export const AddCustomerForm = ({ 
+  onSubmit, 
+  onCancel, 
+  canAddCustomer = true, 
+  limitMessage, 
+  onUpgrade 
+}: AddCustomerFormProps) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [nickname, setNickname] = useState('');
@@ -53,6 +62,54 @@ export const AddCustomerForm = ({ onSubmit, onCancel }: AddCustomerFormProps) =>
             <X className="w-5 h-5 text-zinc-400" />
           </button>
         </div>
+
+        {/* Advertencia de límite */}
+        {limitMessage && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-amber-800 mb-1">
+                  {limitMessage}
+                </p>
+                <p className="text-xs text-amber-600 mb-3">
+                  Actualiza a Pro para clientes ilimitados y más funciones.
+                </p>
+                {onUpgrade && (
+                  <button
+                    type="button"
+                    onClick={onUpgrade}
+                    className="text-sm font-bold text-amber-700 underline hover:text-amber-800"
+                  >
+                    Ver planes →
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error si ya no puede agregar */}
+        {!canAddCustomer && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-4">
+            <p className="text-sm font-bold text-red-800 mb-2">
+              Has llegado al límite del plan gratis
+            </p>
+            <p className="text-xs text-red-600 mb-3">
+              Para seguir agregando clientes, actualiza a Pro.
+            </p>
+            {onUpgrade && (
+              <Button
+                type="button"
+                onClick={onUpgrade}
+                className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Actualizar a Pro
+              </Button>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Nombre - Obligatorio */}

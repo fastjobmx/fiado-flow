@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, User, DollarSign, Calendar, MessageSquare, Check, X, Search } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Clock, Camera, Check, X, Search, ImagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Customer, Transaction } from '@/types/fiado';
@@ -15,6 +15,18 @@ interface QuickDebtFormProps {
 
 const QUICK_AMOUNTS = [5000, 10000, 20000, 50000, 100000];
 
+const DESCRIPTION_SUGGESTIONS = [
+  'Mercado',
+  'Varios',
+  'Carne/Pollo',
+  'Huevos/Leche',
+  'Arroz/Aceite',
+  'Cerveza/Gaseosa',
+  'Pan/Abarrotes',
+  'Droguería',
+  'Otro'
+];
+
 export const QuickDebtForm = ({
   customers,
   selectedCustomer: initialCustomer,
@@ -27,7 +39,9 @@ export const QuickDebtForm = ({
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [promisedDate, setPromisedDate] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -98,11 +112,16 @@ export const QuickDebtForm = ({
       const numAmount = parseInt(amount.replace(/\D/g, ''));
       const promised = promisedDate ? new Date(promisedDate) : undefined;
       
+      // Combinar fecha y hora
+      const dateTime = new Date(date);
+      const [hours, minutes] = time.split(':').map(Number);
+      dateTime.setHours(hours, minutes);
+      
       await onSubmit(
         selectedCustomer.id,
         numAmount,
         description || 'Fiado',
-        new Date(date),
+        dateTime,
         promised
       );
       
@@ -302,7 +321,7 @@ export const QuickDebtForm = ({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Descripción */}
+          {/* Descripción con sugerencias */}
           <div>
             <label className="block text-sm font-bold text-zinc-700 mb-2">
               ¿Qué se llevó? (opcional)
@@ -312,24 +331,59 @@ export const QuickDebtForm = ({
               placeholder="Ej: Arroz, aceite, mercado..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="h-14 rounded-2xl border-2 text-base"
+              className="h-14 rounded-2xl border-2 text-base mb-3"
             />
+            
+            {/* Sugerencias */}
+            <div className="flex flex-wrap gap-2">
+              {DESCRIPTION_SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => setDescription(suggestion)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    description === suggestion
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-zinc-100 text-zinc-600 hover:bg-amber-100 hover:text-amber-700'
+                  }`}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Fecha */}
-          <div>
-            <label className="block text-sm font-bold text-zinc-700 mb-2">
-              Fecha del fiado *
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="pl-12 h-14 rounded-2xl border-2 text-base"
-                required
-              />
+          {/* Fecha y Hora */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-bold text-zinc-700 mb-2">
+                Fecha *
+              </label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="pl-9 h-12 rounded-xl border-2 text-sm"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-zinc-700 mb-2">
+                Hora *
+              </label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="pl-9 h-12 rounded-xl border-2 text-sm"
+                  required
+                />
+              </div>
             </div>
           </div>
 
@@ -353,6 +407,60 @@ export const QuickDebtForm = ({
             </p>
           </div>
 
+          {/* Foto del fiado */}
+          <div>
+            <label className="block text-sm font-bold text-zinc-700 mb-2">
+              Foto de lo que se llevó (opcional)
+            </label>
+            
+            {photo ? (
+              <div className="relative">
+                <img 
+                  src={photo} 
+                  alt="Fiado" 
+                  className="w-full h-48 object-cover rounded-2xl border-2 border-zinc-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPhoto(null)}
+                  className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  // Simular selección de foto - en producción usar input file
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setPhoto(event.target?.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  };
+                  input.click();
+                }}
+                className="w-full h-32 rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 flex flex-col items-center justify-center gap-2 hover:bg-zinc-100 hover:border-amber-400 transition-all"
+              >
+                <ImagePlus className="w-8 h-8 text-zinc-400" />
+                <span className="text-sm text-zinc-500 font-medium">
+                  Toca para agregar foto
+                </span>
+                <span className="text-xs text-zinc-400">
+                  (opcional)
+                </span>
+              </button>
+            )}
+          </div>
+
           {/* Resumen */}
           <div className="bg-amber-50 rounded-2xl p-4 border-2 border-amber-100">
             <h4 className="font-bold text-amber-900 mb-2">Resumen</h4>
@@ -365,7 +473,7 @@ export const QuickDebtForm = ({
               </p>
               <p className="text-amber-800">
                 <span className="font-medium">Fecha:</span>{' '}
-                {new Date(date).toLocaleDateString('es-CO')}
+                {new Date(date).toLocaleDateString('es-CO')} a las {time}
               </p>
               {promisedDate && (
                 <p className="text-amber-800">

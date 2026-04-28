@@ -31,6 +31,12 @@ interface DashboardProps {
   onAddDebt?: () => void;
   onAddPayment?: () => void;
   onSendWhatsApp?: (customer: Customer) => void;
+  // Props de plan
+  planName?: string;
+  planId?: 'free' | 'pro' | 'plus';
+  customerLimit?: number | null;
+  currentCustomers?: number;
+  onShowPlanSelector?: () => void;
 }
 
 // Tarjeta de estadística principal
@@ -231,6 +237,11 @@ export const Dashboard = ({
   onAddDebt,
   onAddPayment,
   onSendWhatsApp,
+  planName = 'Gratis',
+  planId = 'free',
+  customerLimit = null,
+  currentCustomers = 0,
+  onShowPlanSelector,
 }: DashboardProps) => {
   const customerCount = customersWithDebt.length;
   
@@ -239,14 +250,81 @@ export const Dashboard = ({
     .sort((a, b) => (b.totalDebt || 0) - (a.totalDebt || 0))
     .slice(0, 5);
   
-  // Clientes con promesa de pago para hoy (simulado - en producción vendría del backend)
+  // Clientes con promesa de pago para hoy (simulado)
   const cobrarHoy = overdueCustomers.slice(0, 3);
   
   // Últimos 5 movimientos
   const ultimosMovimientos = recentTransactions.slice(0, 5);
 
+  // Verificar si está cerca del límite
+  const isNearLimit = customerLimit !== null && currentCustomers >= customerLimit * 0.8;
+  const remainingCustomers = customerLimit !== null ? customerLimit - currentCustomers : null;
+
   return (
     <div className="space-y-6">
+      {/* Banner del plan actual */}
+      <div className={cn(
+        "flex items-center justify-between p-4 rounded-2xl border-2",
+        planId === 'free' ? "bg-zinc-50 border-zinc-200" : 
+        planId === 'pro' ? "bg-amber-50 border-amber-200" : 
+        "bg-purple-50 border-purple-200"
+      )}>
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "w-10 h-10 rounded-xl flex items-center justify-center",
+            planId === 'free' ? "bg-zinc-200" : 
+            planId === 'pro' ? "bg-amber-200" : 
+            "bg-purple-200"
+          )}>
+            <span className="text-lg">
+              {planId === 'free' ? '⚡' : planId === 'pro' ? '⭐' : '👑'}
+            </span>
+          </div>
+          <div>
+            <p className="text-sm text-zinc-500">Plan actual</p>
+            <p className="font-bold text-zinc-900">{planName}</p>
+          </div>
+        </div>
+        {onShowPlanSelector && (
+          <button
+            onClick={onShowPlanSelector}
+            className={cn(
+              "text-sm font-bold px-4 py-2 rounded-xl transition-colors",
+              planId === 'free' ? "bg-zinc-900 text-white hover:bg-zinc-800" : 
+              planId === 'pro' ? "bg-amber-500 text-white hover:bg-amber-600" : 
+              "bg-purple-500 text-white hover:bg-purple-600"
+            )}
+          >
+            {planId === 'free' ? 'Mejorar plan' : 'Cambiar plan'}
+          </button>
+        )}
+      </div>
+
+      {/* Advertencia de límite */}
+      {isNearLimit && remainingCustomers !== null && remainingCustomers > 0 && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-amber-800">
+                Te quedan {remainingCustomers} {remainingCustomers === 1 ? 'cliente' : 'clientes'} en el plan gratis
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                Actualiza a Pro para clientes ilimitados
+              </p>
+              {onShowPlanSelector && (
+                <button
+                  onClick={onShowPlanSelector}
+                  className="text-sm font-bold text-amber-700 underline hover:text-amber-800 mt-2"
+                >
+                  Ver planes →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Botones de acción principales */}
       <div className="flex gap-3">
         <Button

@@ -24,6 +24,10 @@ import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { Button } from '@/components/ui/button';
 import { MobileActionBar } from '@/components/MobileActionBar';
 import { canCreateDebt, canCreateCustomer, formatCOP } from '@/lib/utils';
+import { useSubscription } from '@/hooks/useSubscription';
+import { PlanSelector } from '@/components/PlanSelector';
+import { UpgradeModal } from '@/components/UpgradeModal';
+import { PlanType } from '@/types/subscription';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -48,11 +52,30 @@ const Index = () => {
     importCustomers,
   } = useFiados();
 
+  // Lógica de suscripción y planes
+  const {
+    subscription,
+    plan,
+    canAddCustomer,
+    canAddTransaction,
+    isNearCustomerLimit,
+    isNearTransactionLimit,
+    customerLimitMessage,
+    transactionLimitMessage,
+    upgradePlan,
+  } = useSubscription({
+    currentCustomers: customers.length,
+    currentTransactions: transactions.length,
+  });
+
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showPaymentsSummary, setShowPaymentsSummary] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showReports, setShowReports] = useState(false);
+  const [showPlanSelector, setShowPlanSelector] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeModalType, setUpgradeModalType] = useState<'customers' | 'transactions' | 'feature'>('customers');
   const [autoFocusSearch, setAutoFocusSearch] = useState(false);
   const [showQuickTransaction, setShowQuickTransaction] = useState<{ type: 'debt' | 'payment' } | null>(null);
 
@@ -191,14 +214,33 @@ const Index = () => {
           recentTransactions={transactions.slice(0, 5)}
           onViewCustomers={() => document.getElementById('clientes-section')?.scrollIntoView({ behavior: 'smooth' })}
           onViewCustomer={setSelectedCustomer}
-          onAddDebt={() => setShowQuickTransaction({ type: 'debt' })}
-          onAddPayment={() => setShowQuickTransaction({ type: 'payment' })}
+          onAddDebt={() => {
+            if (!canAddTransaction) {
+              setUpgradeModalType('transactions');
+              setShowUpgradeModal(true);
+              return;
+            }
+            setShowQuickTransaction({ type: 'debt' });
+          }}
+          onAddPayment={() => {
+            if (!canAddTransaction) {
+              setUpgradeModalType('transactions');
+              setShowUpgradeModal(true);
+              return;
+            }
+            setShowQuickTransaction({ type: 'payment' });
+          }}
           onSendWhatsApp={(customer) => {
             if (customer.phone) {
               const message = `Hola ${customer.name}, te recuerdo que tienes un saldo pendiente de ${formatCOP(customer.totalDebt)} en ${profile?.store_name || 'mi tienda'}. Gracias por tu abono.`;
               window.open(`https://wa.me/57${customer.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
             }
           }}
+          planName={plan.name}
+          planId={plan.id}
+          customerLimit={plan.limits.maxCustomers}
+          currentCustomers={customers.length}
+          onShowPlanSelector={() => setShowPlanSelector(true)}
         />
       </div>
 
@@ -258,10 +300,24 @@ const Index = () => {
       {/* Floating Action Button para acceso rápido */}
       {!selectedCustomer && (
         <FloatingActions
-          onAddCustomer={() => setShowAddCustomer(true)}
-          onAddDebt={() => setShowQuickTransaction({ type: 'debt' })}
-          canAddCustomer={canCreateCustomer(userStatus)}
-          canAddDebt={canCreateDebt(userStatus)}
+          onAddCustomer={() => {
+            if (!canAddCustomer) {
+              setUpgradeModalType('customers');
+              setShowUpgradeModal(true);
+              return;
+            }
+            setShowAddCustomer(true);
+          }}
+          onAddDebt={() => {
+            if (!canAddTransaction) {
+              setUpgradeModalType('transactions');
+              setShowUpgradeModal(true);
+              return;
+            }
+            setShowQuickTransaction({ type: 'debt' });
+          }}
+          canAddCustomer={canAddCustomer}
+          canAddDebt={canAddTransaction}
         />
       )}
 
@@ -273,10 +329,22 @@ const Index = () => {
       {showAddCustomer && (
         <AddCustomerForm
           onSubmit={async (name, phone, nickname, address, notes) => {
+            // Verificar límite antes de agregar
+            if (!canAddCustomer) {
+              setUpgradeModalType('customers');
+              setShowUpgradeModal(true);
+              return;
+            }
             await addCustomer(name, phone, nickname, address, notes);
             setShowAddCustomer(false);
           }}
           onCancel={() => setShowAddCustomer(false)}
+          canAddCustomer={canAddCustomer}
+          limitMessage={customerLimitMessage}
+          onUpgrade={() => {
+            setShowAddCustomer(false);
+            setShowPlanSelector(true);
+          }}
         />
       )}
 
@@ -313,6 +381,31 @@ const Index = () => {
           customers={customers}
           transactions={transactions}
           onBack={() => setShowReports(false)}
+        />
+      )}
+
+      {/* Plan Selector */}
+      {showPlanSelector && (
+        <PlanSelector
+          currentPlan={plan.id}
+          onSelectPlan={(newPlan) => {
+            upgradePlan(newPlan);
+            setShowPlanSelector(false);
+          }}
+          onCancel={() => setShowPlanSelector(false)}
+        />
+      )}
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          onUpgrade={(newPlan) => {
+            upgradePlan(newPlan);
+            setShowUpgradeModal(false);
+          }}
+          type={upgradeModalType}
         />
       )}
 
