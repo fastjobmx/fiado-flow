@@ -22,7 +22,7 @@ import ProfileSettings from '@/components/ProfileSettings';
 import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { Button } from '@/components/ui/button';
 import { MobileActionBar } from '@/components/MobileActionBar';
-import { canCreateDebt, canCreateCustomer } from '@/lib/utils';
+import { canCreateDebt, canCreateCustomer, formatCOP } from '@/lib/utils';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -187,8 +187,17 @@ const Index = () => {
           todayPayments={dailyStats?.newPayments || 0}
           todayDebts={dailyStats?.newDebts || 0}
           overdueCustomers={getOverdueCustomers(7)}
+          recentTransactions={transactions.slice(0, 5)}
           onViewCustomers={() => document.getElementById('clientes-section')?.scrollIntoView({ behavior: 'smooth' })}
           onViewCustomer={setSelectedCustomer}
+          onAddDebt={() => setShowQuickTransaction({ type: 'debt' })}
+          onAddPayment={() => setShowQuickTransaction({ type: 'payment' })}
+          onSendWhatsApp={(customer) => {
+            if (customer.phone) {
+              const message = `Hola ${customer.name}, te recuerdo que tienes un saldo pendiente de ${formatCOP(customer.totalDebt)} en ${profile?.store_name || 'mi tienda'}. Gracias por tu abono.`;
+              window.open(`https://wa.me/57${customer.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+            }
+          }}
         />
       </div>
 
