@@ -26,7 +26,7 @@ import { MobileActionBar } from '@/components/MobileActionBar';
 import { canCreateDebt, canCreateCustomer, formatCOP } from '@/lib/utils';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PlanSelector } from '@/components/PlanSelector';
-import { UpgradeModal } from '@/components/UpgradeModal';
+import { FriendlyUpgradeModal } from '@/components/FriendlyUpgradeModal';
 import { PlanType } from '@/types/subscription';
 
 const Index = () => {
@@ -75,7 +75,7 @@ const Index = () => {
   const [showReports, setShowReports] = useState(false);
   const [showPlanSelector, setShowPlanSelector] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeModalType, setUpgradeModalType] = useState<'customers' | 'transactions' | 'feature'>('customers');
+  const [upgradeModalType, setUpgradeModalType] = useState<'customers' | 'transactions' | 'export'>('customers');
   const [autoFocusSearch, setAutoFocusSearch] = useState(false);
   const [showQuickTransaction, setShowQuickTransaction] = useState<{ type: 'debt' | 'payment' } | null>(null);
 
@@ -396,14 +396,18 @@ const Index = () => {
         />
       )}
 
-      {/* Upgrade Modal */}
+      {/* Upgrade Modal Amigable */}
       {showUpgradeModal && (
-        <UpgradeModal
+        <FriendlyUpgradeModal
           isOpen={showUpgradeModal}
           onClose={() => setShowUpgradeModal(false)}
-          onUpgrade={(newPlan) => {
-            upgradePlan(newPlan);
+          onViewPlans={() => {
             setShowUpgradeModal(false);
+            setShowPlanSelector(true);
+          }}
+          onWhatsApp={() => {
+            const message = 'Hola, me interesa actualizar mi plan de FIADO. ¿Me pueden ayudar?';
+            window.open(`https://wa.me/573001234567?text=${encodeURIComponent(message)}`, '_blank');
           }}
           type={upgradeModalType}
         />
