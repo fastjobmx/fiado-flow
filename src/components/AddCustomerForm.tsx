@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { UserPlus, X, Tag, MapPin, FileText } from 'lucide-react';
+import { UserPlus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 interface AddCustomerFormProps {
   onSubmit: (name: string, phone: string, nickname?: string, address?: string, notes?: string, creditLimit?: number) => void;
@@ -15,7 +14,7 @@ export const AddCustomerForm = ({ onSubmit, onCancel }: AddCustomerFormProps) =>
   const [nickname, setNickname] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
-  const [creditLimit, setCreditLimit] = useState('');
+  const [showExtras, setShowExtras] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,26 +22,29 @@ export const AddCustomerForm = ({ onSubmit, onCancel }: AddCustomerFormProps) =>
       onSubmit(
         name.trim(), 
         phone.replace(/\D/g, ''),
-        nickname.trim(),
-        address.trim(),
-        notes.trim(),
-        creditLimit ? Number(creditLimit) : 0
+        nickname.trim() || undefined,
+        address.trim() || undefined,
+        notes.trim() || undefined,
+        undefined
       );
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
       <div 
-        className="bg-white w-full max-w-md rounded-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 max-h-[90vh] overflow-y-auto"
+        className="bg-white w-full sm:max-w-md sm:rounded-[32px] rounded-t-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Handle visual para mobile */}
+        <div className="w-12 h-1 bg-zinc-200 rounded-full mx-auto mb-6 sm:hidden" />
+        
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-xl">
               <UserPlus className="w-5 h-5 text-primary" />
             </div>
-            <h2 className="text-xl font-black text-zinc-900">Nuevo Cliente</h2>
+            <h2 className="text-xl font-black text-zinc-900">Agregar cliente</h2>
           </div>
           <button
             onClick={onCancel}
@@ -52,46 +54,32 @@ export const AddCustomerForm = ({ onSubmit, onCancel }: AddCustomerFormProps) =>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-1.5">
-            <Label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">
-              Nombre completo
-            </Label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Nombre - Obligatorio */}
+          <div>
+            <label className="block text-sm font-bold text-zinc-700 mb-2">
+              Nombre completo *
+            </label>
             <Input
               type="text"
               placeholder="Ej: María García"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="h-14 bg-zinc-50 border-zinc-100 rounded-2xl font-bold"
-              autoComplete="name"
+              className="h-14 text-base font-medium rounded-2xl border-2 border-zinc-200 focus:border-primary"
               autoFocus
               required
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">
-              Apodo / Alias
-            </Label>
-            <div className="relative">
-              <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-              <Input
-                placeholder="Ej: Doña María"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                className="h-14 pl-11 bg-zinc-50 border-zinc-100 rounded-2xl font-bold"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">
+          {/* Celular - Importante para WhatsApp */}
+          <div>
+            <label className="block text-sm font-bold text-zinc-700 mb-2">
               Número de celular
-            </Label>
+            </label>
             <div className="flex items-center gap-2">
-              <div className="h-14 px-4 flex items-center justify-center rounded-2xl border border-zinc-100 bg-zinc-50 text-sm font-bold text-zinc-400 shrink-0">
+              <span className="h-14 px-4 flex items-center rounded-2xl bg-zinc-100 text-sm font-bold text-zinc-600">
                 +57
-              </div>
+              </span>
               <Input
                 type="tel"
                 inputMode="numeric"
@@ -99,63 +87,80 @@ export const AddCustomerForm = ({ onSubmit, onCancel }: AddCustomerFormProps) =>
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 maxLength={10}
-                className="h-14 bg-zinc-50 border-zinc-100 rounded-2xl font-bold flex-1"
+                className="h-14 text-base font-medium rounded-2xl border-2 border-zinc-200 focus:border-primary flex-1"
               />
             </div>
+            <p className="text-xs text-zinc-500 mt-1">
+              Necesario para enviar recordatorios por WhatsApp
+            </p>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">
-              Dirección
-            </Label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-              <Input
-                placeholder="Ej: Calle 123 # 45-67"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="h-14 pl-11 bg-zinc-50 border-zinc-100 rounded-2xl font-bold"
-              />
+          {/* Campos opcionales colapsables */}
+          <button
+            type="button"
+            onClick={() => setShowExtras(!showExtras)}
+            className="flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 py-2"
+          >
+            {showExtras ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {showExtras ? 'Ocultar datos opcionales' : 'Agregar más datos (opcional)'}
+          </button>
+
+          {showExtras && (
+            <div className="space-y-4 animate-in slide-in-from-top-2">
+              <div>
+                <label className="block text-sm font-bold text-zinc-700 mb-2">
+                  Apodo / Cómo lo conoces
+                </label>
+                <Input
+                  placeholder="Ej: Doña María, el del negocio de la esquina"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  className="h-14 text-base font-medium rounded-2xl border-2 border-zinc-200 focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-zinc-700 mb-2">
+                  Dirección
+                </label>
+                <Input
+                  placeholder="Ej: Calle 123 # 45-67, barrio Centro"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="h-14 text-base font-medium rounded-2xl border-2 border-zinc-200 focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-zinc-700 mb-2">
+                  Notas
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ej: Paga los sábados, tiene 3 hijos, vive cerca..."
+                  className="w-full h-24 p-4 text-base font-medium rounded-2xl border-2 border-zinc-200 focus:border-primary focus:outline-none resize-none"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="space-y-1.5">
-            <Label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">
-              Límite de fiado (Opcional)
-            </Label>
-            <div className="relative">
-              <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-              <Input
-                type="number"
-                placeholder="Ej: 50000"
-                value={creditLimit}
-                onChange={(e) => setCreditLimit(e.target.value)}
-                className="h-14 pl-11 bg-zinc-50 border-zinc-100 rounded-2xl font-bold"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">
-              Notas adicionales
-            </Label>
-            <div className="relative">
-              <FileText className="absolute left-4 top-4 w-4 h-4 text-zinc-400" />
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ej: Paga siempre los sábados"
-                className="w-full min-h-[100px] pl-11 pr-4 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white transition-all resize-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onCancel} className="flex-1 h-14 rounded-2xl border-zinc-200 font-bold text-zinc-500">
+          {/* Botones */}
+          <div className="flex gap-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel} 
+              className="flex-1 h-14 rounded-2xl border-2 border-zinc-200 font-bold text-zinc-600"
+            >
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1 h-14 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-black" disabled={!name.trim()}>
-              Crear Cliente
+            <Button 
+              type="submit" 
+              className="flex-1 h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-base"
+              disabled={!name.trim()}
+            >
+              Guardar cliente
             </Button>
           </div>
         </form>

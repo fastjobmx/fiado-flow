@@ -14,6 +14,7 @@ import { CustomerDetail } from '@/components/CustomerDetail';
 import { AddCustomerForm } from '@/components/AddCustomerForm';
 import { PaymentsSummary } from '@/components/PaymentsSummary';
 import { QuickTransaction } from '@/components/QuickTransaction';
+import { SimpleReports } from '@/components/SimpleReports';
 import { ExcelManager } from '@/components/ExcelManager';
 import { FloatingActions } from '@/components/FloatingActions';
 import { WelcomeTooltip } from '@/components/WelcomeTooltip';
@@ -50,6 +51,7 @@ const Index = () => {
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showPaymentsSummary, setShowPaymentsSummary] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showReports, setShowReports] = useState(false);
   const [autoFocusSearch, setAutoFocusSearch] = useState(false);
   const [showQuickTransaction, setShowQuickTransaction] = useState<{ type: 'debt' | 'payment' } | null>(null);
 
@@ -149,8 +151,8 @@ const Index = () => {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setShowPaymentsSummary(true)}
-            title="Resumen de pagos"
+            onClick={() => setShowReports(true)}
+            title="Reportes"
           >
             <BarChart3 className="w-5 h-5" />
           </Button>
@@ -289,6 +291,15 @@ const Index = () => {
           onSavePaymentContacts={updatePaymentContacts}
           onSaveMessageTemplates={updateMessageTemplates}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {/* Reportes */}
+      {showReports && (
+        <SimpleReports
+          customers={customers}
+          transactions={transactions}
+          onBack={() => setShowReports(false)}
         />
       )}
 
